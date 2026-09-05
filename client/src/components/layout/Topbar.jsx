@@ -2,6 +2,7 @@ import React from 'react';
 import { Menu, PanelLeft } from 'lucide-react';
 import { NotificationDropdown } from './NotificationDropdown';
 import { ProfileDropdown } from './ProfileDropdown';
+import AttendenceButton from './AttendenceButton';
 
 export const Topbar = ({
   onToggleSidebar,
@@ -38,6 +39,8 @@ export const Topbar = ({
 
       {/* Right side controls */}
       <div className="flex items-center gap-2">
+        <AttendenceButton />
+        <div className="h-6 w-[1px] bg-slate-200 mx-1" />
         <NotificationDropdown />
         <div className="h-6 w-[1px] bg-slate-200 mx-1" />
         <ProfileDropdown />
