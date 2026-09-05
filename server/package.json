@@ -14,6 +14,8 @@
     "test:phase6": "node test-phase6.js",
     "test:phase9": "node test-phase9.js",
     "test:phase10": "node test-phase10.js",
+    "test:phase11": "node test-phase11.js",
+    "test:phase12": "node test-phase12.js",
     "seed:rbac": "node -e \"import('./src/config/seedRbac.js').then(m => m.seedRbac().then(() => process.exit(0)))\""
   },
   "dependencies": {
@@ -24,7 +26,8 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
     "knex": "^3.3.0",
-    "mysql2": "^3.24.3"
+    "mysql2": "^3.24.3",
+    "nodemailer": "^10.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

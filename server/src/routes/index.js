@@ -14,6 +14,9 @@ import salaryStructureRoutes from './salaryStructureRoutes.js';
 import salaryRuleRoutes from './salaryRuleRoutes.js';
 import payrollRoutes from './payrollRoutes.js';
 import payrunRoutes from './payrunRoutes.js';
+import payslipRoutes from './payslipRoutes.js';
+import dashboardRoutes from './dashboardRoutes.js';
+import reportRoutes from './reportRoutes.js';
 
 const router = Router();
 
@@ -51,5 +54,12 @@ router.use('/payroll', payrollRoutes);
 
 // Phase 10: Payrun Management routes
 router.use('/payruns', payrunRoutes);
+
+// Phase 11: Payslip Generation & Email Distribution routes
+router.use('/payslips', payslipRoutes);
+
+// Phase 12: Dashboard & Reporting routes
+router.use('/dashboard', dashboardRoutes);
+router.use('/reports', reportRoutes);
 
 export default router;
