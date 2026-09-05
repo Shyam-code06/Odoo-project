@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test:auth": "node test-auth.js"
+    "test:auth": "node test-auth.js",
+    "test:rbac": "node test-rbac.js",
+    "seed:rbac": "node -e \"import('./src/config/seedRbac.js').then(m => m.seedRbac().then(() => process.exit(0)))\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

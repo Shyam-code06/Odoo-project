@@ -1,4 +1,5 @@
 import BaseModel from './BaseModel.js';
+import { getPermissionsForRole } from '../config/rbacConstants.js';
 
 export class UserModel extends BaseModel {
   constructor() {
@@ -11,27 +12,30 @@ export class UserModel extends BaseModel {
    * @param {import('knex').Knex.Transaction} [trx]
    */
   async findByEmail(email, trx = null) {
-    return await this.query(trx)
+    const user = await this.query(trx)
       .leftJoin('roles', 'users.role_id', 'roles.id')
       .leftJoin('employees', 'users.employee_id', 'employees.id')
       .where('users.email', email)
       .select(
         'users.*',
         'roles.name as role_name',
+        'roles.code as role_code',
         'employees.first_name',
         'employees.last_name',
         'employees.employee_code'
       )
       .first();
+
+    return user;
   }
 
   /**
-   * Find user by ID with joined role and employee profile
+   * Find user by ID with joined role, employee profile, and in-memory permissions
    * @param {number|string} id
    * @param {import('knex').Knex.Transaction} [trx]
    */
   async findProfileById(id, trx = null) {
-    return await this.query(trx)
+    const user = await this.query(trx)
       .leftJoin('roles', 'users.role_id', 'roles.id')
       .leftJoin('employees', 'users.employee_id', 'employees.id')
       .leftJoin('departments', 'employees.department_id', 'departments.id')
@@ -46,6 +50,7 @@ export class UserModel extends BaseModel {
         'users.created_at',
         'users.updated_at',
         'roles.name as role_name',
+        'roles.code as role_code',
         'employees.employee_code',
         'employees.first_name',
         'employees.last_name',
@@ -53,6 +58,13 @@ export class UserModel extends BaseModel {
         'job_positions.title as job_title'
       )
       .first();
+
+    if (!user) return null;
+
+    // Attach in-memory permissions based on role code or name
+    user.permissions = getPermissionsForRole(user.role_code || user.role_name);
+
+    return user;
   }
 
   /**
@@ -75,6 +87,7 @@ export class UserModel extends BaseModel {
         'users.created_at',
         'users.updated_at',
         'roles.name as role_name',
+        'roles.code as role_code',
         'employees.employee_code',
         'employees.first_name',
         'employees.last_name'
@@ -97,6 +110,8 @@ export class UserModel extends BaseModel {
     if (page && limit) {
       const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
       q = q.limit(parseInt(limit, 10)).offset(offset);
+    } else if (limit) {
+      q = q.limit(parseInt(limit, 10));
     }
 
     return await q.orderBy('users.id', 'desc');

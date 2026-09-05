@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { testConnection } from './src/config/db.js';
+import { seedRbac } from './src/config/seedRbac.js';
 import routes from './src/routes/index.js';
 import { notFoundHandler, errorHandler } from './src/middleware/errorHandler.js';
 
@@ -58,10 +59,15 @@ app.use(notFoundHandler);
 // Global error handler
 app.use(errorHandler);
 
-if (process.env.NODE_ENV !== 'test') {
+const isMainModule = process.argv[1] && (process.argv[1].endsWith('index.js') || process.argv[1].endsWith('server.js'));
+
+if (isMainModule && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, async () => {
-    console.log(` Server is running on port ${PORT}`);
-    await testConnection();
+    console.log(`🚀 Server is running on port ${PORT}`);
+    const connected = await testConnection();
+    if (connected) {
+      await seedRbac();
+    }
   });
 }
 
