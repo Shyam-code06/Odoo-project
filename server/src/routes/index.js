@@ -6,6 +6,9 @@ import jobPositionRoutes from './jobPositionRoutes.js';
 import timeOffTypeRoutes from './timeOffTypeRoutes.js';
 import salaryRuleCategoryRoutes from './salaryRuleCategoryRoutes.js';
 import employeeRoutes from './employeeRoutes.js';
+import scheduleRoutes from './scheduleRoutes.js';
+import contractRoutes from './contractRoutes.js';
+import attendanceRoutes from './attendanceRoutes.js';
 
 const router = Router();
 
@@ -24,5 +27,11 @@ router.use('/salary-rule-categories', salaryRuleCategoryRoutes);
 // Phase 4: Employee Management routes
 router.use('/employees', employeeRoutes);
 
-export default router;
+// Phase 5: Working Schedules & Contracts routes
+router.use('/schedules', scheduleRoutes);
+router.use('/contracts', contractRoutes);
 
+// Phase 6: Attendance routes
+router.use('/attendance', attendanceRoutes);
+
+export default router;
