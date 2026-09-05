@@ -192,7 +192,7 @@ export const DepartmentDetailsPage = () => {
 
             {department.manager ? (
               <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <Avatar src={department.manager.avatar} name={department.manager.name} size="lg" />
+                <Avatar src={department.manager.avatar} name={department.manager.name} size="sm" style={{ flexShrink: 0 }} />
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-slate-900 text-sm">{department.manager.name}</h4>
                   <p className="text-xs text-slate-500 font-mono flex items-center gap-2 mt-0.5">

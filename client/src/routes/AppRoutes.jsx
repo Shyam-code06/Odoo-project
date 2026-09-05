@@ -32,6 +32,10 @@ import { WorkingScheduleListPage } from '../pages/schedules/WorkingScheduleListP
 import { WorkingScheduleDetailsPage } from '../pages/schedules/WorkingScheduleDetailsPage';
 import { WorkingScheduleFormPage } from '../pages/schedules/WorkingScheduleFormPage';
 
+import { AttendanceListPage } from '../pages/attendance/AttendanceListPage';
+import { AttendanceDetailsPage } from '../pages/attendance/AttendanceDetailsPage';
+import { AttendanceFormPage } from '../pages/attendance/AttendanceFormPage';
+
 import { PERMISSIONS, ROLES } from '../config/permissions';
 
 export const AppRoutes = () => {
@@ -81,7 +85,7 @@ export const AppRoutes = () => {
             path="/my-attendance"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.MY_ATTENDANCE_VIEW}>
-                <PlaceholderPage title="My Attendance Records" description="View your personal clock-in history and work logs." part="07" iconName="Clock" />
+                <AttendanceListPage />
               </RoleRoute>
             }
           />
@@ -285,9 +289,39 @@ export const AppRoutes = () => {
             }
           />
 
-          <Route path="/attendance" element={<RoleRoute requiredPermission={PERMISSIONS.ATTENDANCE_VIEW}><PlaceholderPage title="Attendance Tracker" part="07" iconName="Clock" /></RoleRoute>} />
-          <Route path="/attendance/new" element={<RoleRoute requiredPermission={PERMISSIONS.ATTENDANCE_CREATE}><PlaceholderPage title="Log Attendance" part="07" iconName="Plus" /></RoleRoute>} />
-          <Route path="/attendance/:id" element={<RoleRoute requiredPermission={PERMISSIONS.ATTENDANCE_VIEW}><PlaceholderPage title="Attendance Record" part="07" iconName="Clock" /></RoleRoute>} />
+          {/* Attendance Management Routes (Part 07) */}
+          <Route
+            path="/attendance"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.ATTENDANCE_VIEW}>
+                <AttendanceListPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/attendance/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.ATTENDANCE_CREATE}>
+                <AttendanceFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/attendance/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.ATTENDANCE_VIEW}>
+                <AttendanceDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/attendance/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.ATTENDANCE_EDIT}>
+                <AttendanceFormPage />
+              </RoleRoute>
+            }
+          />
 
           <Route path="/time-off/requests" element={<RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}><PlaceholderPage title="Time Off Requests" part="08" iconName="Palmtree" /></RoleRoute>} />
           <Route path="/time-off/requests/new" element={<RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_CREATE}><PlaceholderPage title="New Time Off Request" part="08" iconName="Plus" /></RoleRoute>} />
