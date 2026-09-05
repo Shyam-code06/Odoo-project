@@ -19,12 +19,14 @@ import PayrunModel from './PayrunModel.js';
 import PayrunEmployeeModel from './PayrunEmployeeModel.js';
 import PayslipModel from './PayslipModel.js';
 import PayslipLineModel from './PayslipLineModel.js';
+import RefreshTokenModel from './RefreshTokenModel.js';
 
 export {
   db,
   testConnection,
   BaseModel,
   UserModel,
+  RefreshTokenModel,
   RoleModel,
   DepartmentModel,
   JobPositionModel,
@@ -50,6 +52,7 @@ export default {
   testConnection,
   BaseModel,
   UserModel,
+  RefreshTokenModel,
   RoleModel,
   DepartmentModel,
   JobPositionModel,

@@ -194,6 +194,27 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
+-- 10b. Table: refresh_tokens
+-- -----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `refresh_tokens`;
+CREATE TABLE `refresh_tokens` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL COMMENT 'Token owner (FK -> users)',
+  `token_hash` VARCHAR(255) NOT NULL UNIQUE COMMENT 'Hashed refresh token or JTI hash',
+  `expires_at` DATETIME NOT NULL COMMENT 'Expiration timestamp',
+  `is_revoked` BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Whether token is revoked',
+  `revoked_at` DATETIME NULL COMMENT 'When token was revoked',
+  `replaced_by_hash` VARCHAR(255) NULL COMMENT 'Rotated token replacement hash',
+  `user_agent` VARCHAR(255) NULL COMMENT 'Client User-Agent info',
+  `ip_address` VARCHAR(45) NULL COMMENT 'Client IP address',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_refresh_tokens_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  INDEX `idx_refresh_tokens_hash` (`token_hash`),
+  INDEX `idx_refresh_tokens_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
 -- 11. Table: contracts
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS `contracts`;

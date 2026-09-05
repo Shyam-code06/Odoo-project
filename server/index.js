@@ -1,21 +1,41 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { testConnection } from './src/config/db.js';
-import models from './src/models/index.js';
+import routes from './src/routes/index.js';
+import { notFoundHandler, errorHandler } from './src/middleware/errorHandler.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
+// CORS configuration (allow credentials for cookies)
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, postman) or any localhost port
+      if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-refresh-token']
+  })
+);
 
+app.use(express.json());
+app.use(cookieParser());
+
+// Base health check
 app.get('/', (req, res) => {
   res.json({
     status: 'success',
-    message: 'Odoo Clone API Server is running',
+    message: 'PeoplePay360 HR & Payroll API Server is running',
     version: '1.0.0'
   });
 });
@@ -28,9 +48,21 @@ app.get('/health', async (req, res) => {
   });
 });
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  await testConnection();
-});
+// Mount routes on both /api and root level for maximum compatibility
+app.use('/api', routes);
+app.use('/', routes);
+
+// 404 handler
+app.use(notFoundHandler);
+
+// Global error handler
+app.use(errorHandler);
+
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, async () => {
+    console.log(` Server is running on port ${PORT}`);
+    await testConnection();
+  });
+}
 
 export default app;
