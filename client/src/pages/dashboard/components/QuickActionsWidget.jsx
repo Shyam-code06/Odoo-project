@@ -9,7 +9,7 @@ export const QuickActionsWidget = ({ actions = [] }) => {
   if (!actions || actions.length === 0) return null;
 
   return (
-    <Card className="h-full flex flex-col justify-between">
+    <Card className="flex flex-col justify-between">
       <CardHeader className="pb-3">
         <div>
           <CardTitle>Quick Actions</CardTitle>

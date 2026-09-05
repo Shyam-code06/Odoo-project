@@ -28,6 +28,10 @@ import { JobPositionListPage } from '../pages/jobPositions/JobPositionListPage';
 import { JobPositionDetailsPage } from '../pages/jobPositions/JobPositionDetailsPage';
 import { JobPositionFormPage } from '../pages/jobPositions/JobPositionFormPage';
 
+import { WorkingScheduleListPage } from '../pages/schedules/WorkingScheduleListPage';
+import { WorkingScheduleDetailsPage } from '../pages/schedules/WorkingScheduleDetailsPage';
+import { WorkingScheduleFormPage } from '../pages/schedules/WorkingScheduleFormPage';
+
 import { PERMISSIONS, ROLES } from '../config/permissions';
 
 export const AppRoutes = () => {
@@ -207,16 +211,79 @@ export const AppRoutes = () => {
             }
           />
 
-          {/* Workforce Routes (Parts 06, 07, 08) */}
-          <Route path="/contracts" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_VIEW}><PlaceholderPage title="Employment Contracts" part="06" iconName="FileText" /></RoleRoute>} />
-          <Route path="/contracts/new" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_CREATE}><PlaceholderPage title="New Contract" part="06" iconName="Plus" /></RoleRoute>} />
-          <Route path="/contracts/:id" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_VIEW}><PlaceholderPage title="Contract Detail" part="06" iconName="FileText" /></RoleRoute>} />
-          <Route path="/contracts/:id/edit" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_EDIT}><PlaceholderPage title="Edit Contract" part="06" iconName="FileText" /></RoleRoute>} />
+          {/* Workforce Routes (Contracts, Attendance, Time Off) */}
+          <Route path="/contracts" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_VIEW}><PlaceholderPage title="Employment Contracts" description="Manage employment contracts, salary terms, and duration conditions." part="07" iconName="FileText" /></RoleRoute>} />
+          <Route path="/contracts/new" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_CREATE}><PlaceholderPage title="New Contract" part="07" iconName="Plus" /></RoleRoute>} />
+          <Route path="/contracts/:id" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_VIEW}><PlaceholderPage title="Contract Detail" part="07" iconName="FileText" /></RoleRoute>} />
+          <Route path="/contracts/:id/edit" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_EDIT}><PlaceholderPage title="Edit Contract" part="07" iconName="FileText" /></RoleRoute>} />
 
-          <Route path="/schedules" element={<RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_VIEW}><PlaceholderPage title="Working Schedules" part="06" iconName="CalendarClock" /></RoleRoute>} />
-          <Route path="/schedules/new" element={<RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_CREATE}><PlaceholderPage title="New Working Schedule" part="06" iconName="Plus" /></RoleRoute>} />
-          <Route path="/schedules/:id" element={<RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_VIEW}><PlaceholderPage title="Schedule Detail" part="06" iconName="CalendarClock" /></RoleRoute>} />
-          <Route path="/schedules/:id/edit" element={<RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_EDIT}><PlaceholderPage title="Edit Schedule" part="06" iconName="CalendarClock" /></RoleRoute>} />
+          {/* Working Schedules (Part 06) */}
+          <Route
+            path="/working-schedules"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_VIEW}>
+                <WorkingScheduleListPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/working-schedules/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_CREATE}>
+                <WorkingScheduleFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/working-schedules/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_VIEW}>
+                <WorkingScheduleDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/working-schedules/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_EDIT}>
+                <WorkingScheduleFormPage />
+              </RoleRoute>
+            }
+          />
+
+          {/* Legacy / Alias /schedules routes */}
+          <Route
+            path="/schedules"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_VIEW}>
+                <WorkingScheduleListPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/schedules/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_CREATE}>
+                <WorkingScheduleFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/schedules/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_VIEW}>
+                <WorkingScheduleDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/schedules/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SCHEDULES_EDIT}>
+                <WorkingScheduleFormPage />
+              </RoleRoute>
+            }
+          />
 
           <Route path="/attendance" element={<RoleRoute requiredPermission={PERMISSIONS.ATTENDANCE_VIEW}><PlaceholderPage title="Attendance Tracker" part="07" iconName="Clock" /></RoleRoute>} />
           <Route path="/attendance/new" element={<RoleRoute requiredPermission={PERMISSIONS.ATTENDANCE_CREATE}><PlaceholderPage title="Log Attendance" part="07" iconName="Plus" /></RoleRoute>} />

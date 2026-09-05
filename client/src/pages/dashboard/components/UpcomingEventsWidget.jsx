@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardSubtitle, CardBody } from '../../../co
 
 export const UpcomingEventsWidget = ({ events = [] }) => {
   return (
-    <Card className="h-full flex flex-col justify-between" padding="none">
+    <Card className="flex flex-col justify-between" padding="none">
       <CardHeader className="p-4 sm:p-6 pb-3">
         <div>
           <CardTitle>Upcoming Events & Deadlines</CardTitle>

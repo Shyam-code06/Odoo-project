@@ -30,7 +30,7 @@ export const ActivityItem = ({ actorName, action, target, timestamp, iconName = 
 
 export const RecentActivityWidget = ({ activities = [] }) => {
   return (
-    <Card className="h-full flex flex-col justify-between">
+    <Card className="flex flex-col justify-between">
       <CardHeader className="pb-3">
         <div>
           <CardTitle>Recent HR Operations Activity</CardTitle>

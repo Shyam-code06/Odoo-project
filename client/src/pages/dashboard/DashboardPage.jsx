@@ -63,7 +63,7 @@ export const DashboardPage = () => {
       <PageHeader
         title={`${greeting}`}
         description={
-          currentRole === 'Employee'
+          currentRole === "Employee"
             ? "Here is your personal work summary, attendance check-in, and upcoming schedule."
             : "Here is an overview of your organization's workforce, attendance, and HR operations."
         }
@@ -73,9 +73,9 @@ export const DashboardPage = () => {
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
               options={[
-                { label: 'Today', value: 'today' },
-                { label: 'This Week', value: 'week' },
-                { label: 'This Month', value: 'month' },
+                { label: "Today", value: "today" },
+                { label: "This Week", value: "week" },
+                { label: "This Month", value: "month" },
               ]}
               placeholder=""
             />
@@ -94,7 +94,7 @@ export const DashboardPage = () => {
       <NeedsAttentionWidget items={needsAttention} />
 
       {/* Main Grid Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Left Column (Attendance & Operations) */}
         <div className="lg:col-span-2 space-y-6">
           <AttendanceOverviewWidget summary={attendanceSummary} />
@@ -103,13 +103,14 @@ export const DashboardPage = () => {
             onApprove={approveTimeOff}
             onReject={rejectTimeOff}
           />
-          {payrollSummary && (currentRole.includes('Payroll') || currentRole === 'Admin') && (
-            <PayrollOverviewWidget summary={payrollSummary} />
-          )}
+          {payrollSummary &&
+            (currentRole.includes("Payroll") || currentRole === "Admin") && (
+              <PayrollOverviewWidget summary={payrollSummary} />
+            )}
         </div>
 
         {/* Right Column (Events, Activities & Quick Actions) */}
-        <div className="space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           <QuickActionsWidget actions={quickActions} />
           <UpcomingEventsWidget events={upcomingEvents} />
           <RecentActivityWidget activities={recentActivities} />

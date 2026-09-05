@@ -16,7 +16,7 @@ export const AttendanceOverviewWidget = ({ summary }) => {
   const maxVal = Math.max(...(summary.weeklyTrend?.map((t) => t.present) || [900]));
 
   return (
-    <Card className="h-full flex flex-col justify-between">
+    <Card className="flex flex-col justify-between">
       <CardHeader>
         <div>
           <CardTitle>Today's Attendance Breakdown</CardTitle>

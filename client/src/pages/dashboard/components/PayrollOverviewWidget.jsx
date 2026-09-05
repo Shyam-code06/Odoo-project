@@ -16,7 +16,7 @@ export const PayrollOverviewWidget = ({ summary }) => {
   );
 
   return (
-    <Card className="h-full flex flex-col justify-between bg-gradient-to-br from-white to-orange-50/20">
+    <Card className="flex flex-col justify-between bg-gradient-to-br from-white to-orange-50/20">
       <CardHeader>
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-xl bg-orange-500 text-white shadow-xs">

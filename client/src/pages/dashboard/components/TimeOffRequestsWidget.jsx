@@ -43,7 +43,7 @@ export const TimeOffRequestsWidget = ({ requests = [], onApprove, onReject }) =>
   };
 
   return (
-    <Card className="h-full flex flex-col justify-between" padding="none">
+    <Card className=" flex flex-col justify-between" padding="none">
       <CardHeader className="p-4 sm:p-6 pb-3">
         <div>
           <CardTitle>Pending Time-Off Requests</CardTitle>
