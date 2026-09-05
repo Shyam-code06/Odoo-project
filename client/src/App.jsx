@@ -1,16 +1,19 @@
-import { useState } from 'react'
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './components/ui/Toast';
+import { AppRoutes } from './routes/AppRoutes';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <div>
-      <h1>React 18 App</h1>
-      <button onClick={() => setCount((count) => count + 1)}>
-        count is {count}
-      </button>
-    </div>
-  )
+    <BrowserRouter>
+      <AuthProvider>
+        <ToastProvider>
+          <AppRoutes />
+        </ToastProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
