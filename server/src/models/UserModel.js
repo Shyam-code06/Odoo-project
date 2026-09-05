@@ -19,7 +19,7 @@ export class UserModel extends BaseModel {
       .select(
         'users.*',
         'roles.name as role_name',
-        'roles.code as role_code',
+        this.db.raw("UPPER(REPLACE(roles.name, ' ', '_')) as role_code"),
         'employees.first_name',
         'employees.last_name',
         'employees.employee_code'
@@ -50,7 +50,7 @@ export class UserModel extends BaseModel {
         'users.created_at',
         'users.updated_at',
         'roles.name as role_name',
-        'roles.code as role_code',
+        this.db.raw("UPPER(REPLACE(roles.name, ' ', '_')) as role_code"),
         'employees.employee_code',
         'employees.first_name',
         'employees.last_name',
@@ -87,7 +87,7 @@ export class UserModel extends BaseModel {
         'users.created_at',
         'users.updated_at',
         'roles.name as role_name',
-        'roles.code as role_code',
+        this.db.raw("UPPER(REPLACE(roles.name, ' ', '_')) as role_code"),
         'employees.employee_code',
         'employees.first_name',
         'employees.last_name'

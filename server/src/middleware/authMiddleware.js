@@ -79,4 +79,38 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
-export default authenticate;
+/**
+ * RBAC Authorization Middleware
+ * Verifies if authenticated user has one of the required roles
+ * 'Admin' role always possesses bypass/full authorization
+ * @param {...string} allowedRoles - Role names permitted to access endpoint
+ */
+export const authorize = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication is required.'
+      });
+    }
+
+    const currentRole = (req.user.role_name || '').trim().toLowerCase();
+    const normalizedAllowed = allowedRoles.map((r) => r.trim().toLowerCase());
+
+    // Admin role has unrestricted access across all master data
+    if (currentRole === 'admin' || normalizedAllowed.includes(currentRole)) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: 'Forbidden: You do not have permission to perform this action.'
+    });
+  };
+};
+
+export default {
+  authenticate,
+  authorize
+};
+
