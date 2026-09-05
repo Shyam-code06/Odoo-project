@@ -1,17 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, CheckCheck, Inbox } from 'lucide-react';
 import { Dropdown } from '../ui/Dropdown';
-import { MOCK_NOTIFICATIONS_BY_ROLE } from '../../mocks/authData';
 import { Badge } from '../ui/Badge';
 import { useAuth } from '../../contexts/AuthContext';
+import { apiClient } from '../../services/apiClient';
 
 export const NotificationDropdown = () => {
   const { currentRole } = useAuth();
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    const roleNotifs = MOCK_NOTIFICATIONS_BY_ROLE[currentRole] || MOCK_NOTIFICATIONS_BY_ROLE['Employee'] || [];
-    setNotifications(roleNotifs);
+    let isMounted = true;
+    const fetchAlerts = async () => {
+      try {
+        const res = await apiClient.get('/dashboard/alerts');
+        if (isMounted && res?.success && Array.isArray(res.data)) {
+          const mapped = res.data.map((a, i) => ({
+            id: `notif-${i}`,
+            title: a.title || 'System Notification',
+            description: a.message || '',
+            time: 'Just now',
+            read: false,
+            link: a.category === 'TIME_OFF' ? '/time-off/requests' : a.category === 'PAYROLL' ? '/payroll/payruns' : '/dashboard',
+          }));
+          setNotifications(mapped);
+        } else if (isMounted) {
+          setNotifications([]);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setNotifications([]);
+        }
+      }
+    };
+
+    fetchAlerts();
+    return () => {
+      isMounted = false;
+    };
   }, [currentRole]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;

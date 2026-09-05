@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Alert } from '../../components/ui/Alert';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
-import { MOCK_USERS, DEFAULT_DEMO_PASSWORD } from '../../mocks/authData';
-import { ROLES } from '../../config/permissions';
 
 export const LoginPage = () => {
-  const [email, setEmail] = useState('hrmanager@hrms.demo');
-  const [password, setPassword] = useState(DEFAULT_DEMO_PASSWORD);
+  const [email, setEmail] = useState('admin@gmail.com');
+  const [password, setPassword] = useState('admin123');
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -61,7 +59,7 @@ export const LoginPage = () => {
     try {
       const res = await login(email, password);
       if (res.success) {
-        toast.success(`Welcome back, ${res.user.name}!`);
+        toast.success(`Welcome back, ${res.user.name || 'Admin'}!`);
         navigate('/dashboard');
       } else {
         setErrorMsg(res.error || 'Invalid credentials. Please try again.');
@@ -70,18 +68,6 @@ export const LoginPage = () => {
       setErrorMsg('An unexpected error occurred during login. Please try again.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSelectDemoAccount = (userKey) => {
-    const demoUser = MOCK_USERS[userKey];
-    if (demoUser) {
-      setEmail(demoUser.email);
-      setPassword(DEFAULT_DEMO_PASSWORD);
-      setEmailError('');
-      setPasswordError('');
-      setErrorMsg('');
-      toast.info(`Filled credentials for ${demoUser.name} (${demoUser.role})`);
     }
   };
 
@@ -102,7 +88,7 @@ export const LoginPage = () => {
         <Input
           label="Work Email"
           type="email"
-          placeholder="name@company.com"
+          placeholder="admin@gmail.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           leftIcon={Mail}
@@ -147,32 +133,8 @@ export const LoginPage = () => {
           Sign In
         </Button>
       </form>
-
-      {/* Demo Accounts Panel */}
-      <div className="pt-4 border-t border-slate-100">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 mb-2">
-          <ShieldCheck className="w-3.5 h-3.5 text-orange-500" />
-          <span>Demo Accounts (Click to autofill role)</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          {Object.entries(MOCK_USERS).map(([key, u]) => (
-            <button
-              key={u.id}
-              type="button"
-              onClick={() => handleSelectDemoAccount(key)}
-              className="flex items-center gap-2 px-2.5 py-1.5 text-left rounded-lg bg-slate-50 hover:bg-orange-50/70 border border-slate-200 hover:border-orange-200 transition-colors group cursor-pointer"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-slate-400 group-hover:text-orange-500 shrink-0" />
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold text-slate-800 group-hover:text-orange-600 truncate">
-                  {u.role}
-                </div>
-                <div className="text-[10px] text-slate-500 truncate">{u.name}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };
+
+export default LoginPage;

@@ -1,109 +1,241 @@
-/**
- * Centralized API HTTP Client
- * Production-ready HTTP abstraction using native Fetch API.
- * Handles baseURL, request interceptors (Bearer auth token), response parsing,
- * HTTP error status handling, and seamless API / Mock data bridging.
- */
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-
-// Toggle to control whether failed API calls automatically fallback to local mock store
-const ENABLE_MOCK_FALLBACK = true;
+import axios from 'axios';
 
 /**
- * Core Request Wrapper
+ * Centralized API HTTP Client using Axios
+ * Handles baseURL, request interceptors (Bearer auth token, credentials),
+ * response parsing, and error normalization.
  */
-async function request(endpoint, options = {}) {
-  const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
 
-  const headers = {
+// Base API URL configuration with environment variable support
+const RAW_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:5000/api';
+
+export const API_BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
+
+// Create customized Axios instance
+export const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true, // Send HTTP-only cookies (accessToken, refreshToken)
+  timeout: 30000,
+  headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers,
-  };
+  },
+});
 
-  const config = {
-    method: options.method || 'GET',
-    headers,
-    ...options,
-  };
-
-  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
-    config.body = JSON.stringify(options.body);
-  }
-
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
-
+/**
+ * Helper to retrieve stored token from various potential keys
+ */
+export const getStoredToken = () => {
   try {
-    const response = await fetch(url, config);
+    const directToken =
+      localStorage.getItem('token') ||
+      localStorage.getItem('auth_token') ||
+      localStorage.getItem('accessToken');
+    if (directToken) return directToken;
 
-    // Handle 401 Unauthorized token expiry
-    if (response.status === 401) {
-      console.warn('[API Client] Unauthorized request (401). Token may be expired.');
+    const sessionRaw = localStorage.getItem('hrms_auth_session');
+    if (sessionRaw) {
+      const session = JSON.parse(sessionRaw);
+      if (session?.token) return session.token;
+      if (session?.tokens?.accessToken) return session.tokens.accessToken;
     }
+  } catch {
+    // Ignore storage parsing errors
+  }
+  return null;
+};
 
-    const contentType = response.headers.get('content-type');
-    let data;
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
+// Request interceptor to dynamically inject Authorization Bearer token
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = getStoredToken();
+    if (token && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+export const getStoredRefreshToken = () => {
+  try {
+    const direct = localStorage.getItem('refreshToken');
+    if (direct) return direct;
+    const sessionRaw = localStorage.getItem('hrms_auth_session');
+    if (sessionRaw) {
+      const session = JSON.parse(sessionRaw);
+      if (session?.tokens?.refreshToken) return session.tokens.refreshToken;
+      if (session?.refreshToken) return session.refreshToken;
+    }
+  } catch {
+    // Ignore storage parsing errors
+  }
+  return null;
+};
+
+// State for concurrent token refreshing
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
     } else {
-      data = await response.text();
+      prom.resolve(token);
     }
+  });
+  failedQueue = [];
+};
 
-    if (!response.ok) {
-      const errorMsg = (data && data.message) || `HTTP Error ${response.status}: ${response.statusText}`;
-      throw new Error(errorMsg);
-    }
-
+// Response interceptor to normalize responses and handle errors (including silent token refresh)
+axiosInstance.interceptors.response.use(
+  (response) => {
+    const resData = response.data;
+    // Standardize return structure while retaining backward compatibility
     return {
       success: true,
-      data: data.data || data,
-      message: data.message || 'Success',
+      data: resData?.data !== undefined ? resData.data : resData,
+      message: resData?.message || 'Success',
+      pagination: resData?.pagination,
       status: response.status,
+      raw: resData,
     };
-  } catch (error) {
-    console.warn(`[API Client] Call to '${endpoint}' failed:`, error.message);
-    if (ENABLE_MOCK_FALLBACK) {
-      // Re-throw error so individual services can handle fallback or error state gracefully
-      throw error;
-    }
-    return {
-      success: false,
-      message: error.message || 'Network request failed',
-      error,
-    };
-  }
-}
+  },
+  async (error) => {
+    const originalRequest = error.config;
+    const status = error.response?.status;
+    const errorMsg =
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      'An unexpected network error occurred';
 
-export const apiClient = {
-  get: (endpoint, params = {}, options = {}) => {
-    let queryString = '';
-    if (params && Object.keys(params).length > 0) {
-      const filteredParams = Object.fromEntries(
-        Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== '')
-      );
-      if (Object.keys(filteredParams).length > 0) {
-        queryString = `?${new URLSearchParams(filteredParams).toString()}`;
+    const normalizedError = new Error(errorMsg);
+    normalizedError.status = status;
+    normalizedError.data = error.response?.data;
+    normalizedError.isAxiosError = true;
+
+    // Handle token expiration & automatic refresh
+    if (
+      status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login') &&
+      !originalRequest.url?.includes('/auth/refresh')
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return axiosInstance(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
       }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = getStoredRefreshToken();
+      if (!refreshToken) {
+        isRefreshing = false;
+        return Promise.reject(normalizedError);
+      }
+
+      return new Promise((resolve, reject) => {
+        axios
+          .post(
+            `${API_BASE_URL}/auth/refresh`,
+            { refreshToken },
+            { withCredentials: true }
+          )
+          .then((res) => {
+            const newAccessToken =
+              res.data?.data?.tokens?.accessToken ||
+              res.data?.tokens?.accessToken;
+            const newRefreshToken =
+              res.data?.data?.tokens?.refreshToken ||
+              res.data?.tokens?.refreshToken;
+
+            if (newAccessToken) {
+              localStorage.setItem('token', newAccessToken);
+              localStorage.setItem('accessToken', newAccessToken);
+              localStorage.setItem('auth_token', newAccessToken);
+
+              const sessionRaw = localStorage.getItem('hrms_auth_session');
+              if (sessionRaw) {
+                try {
+                  const session = JSON.parse(sessionRaw);
+                  session.token = newAccessToken;
+                  if (session.tokens) {
+                    session.tokens.accessToken = newAccessToken;
+                    if (newRefreshToken) session.tokens.refreshToken = newRefreshToken;
+                  }
+                  localStorage.setItem('hrms_auth_session', JSON.stringify(session));
+                } catch {
+                  // Ignore parse error
+                }
+              }
+
+              axiosInstance.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+              originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+              processQueue(null, newAccessToken);
+              resolve(axiosInstance(originalRequest));
+            } else {
+              processQueue(new Error('Failed to refresh authentication token'), null);
+              reject(normalizedError);
+            }
+          })
+          .catch((refreshErr) => {
+            processQueue(refreshErr, null);
+            reject(normalizedError);
+          })
+          .finally(() => {
+            isRefreshing = false;
+          });
+      });
     }
-    return request(`${endpoint}${queryString}`, { ...options, method: 'GET' });
+
+    return Promise.reject(normalizedError);
+  }
+);
+
+/**
+ * High-level API Client wrapper matching project service signatures
+ */
+export const apiClient = {
+  axiosInstance,
+
+  get: async (endpoint, params = {}, config = {}) => {
+    return axiosInstance.get(endpoint, {
+      params,
+      ...config,
+    });
   },
 
-  post: (endpoint, body = {}, options = {}) => {
-    return request(endpoint, { ...options, method: 'POST', body });
+  post: async (endpoint, data = {}, config = {}) => {
+    return axiosInstance.post(endpoint, data, config);
   },
 
-  put: (endpoint, body = {}, options = {}) => {
-    return request(endpoint, { ...options, method: 'PUT', body });
+  put: async (endpoint, data = {}, config = {}) => {
+    return axiosInstance.put(endpoint, data, config);
   },
 
-  patch: (endpoint, body = {}, options = {}) => {
-    return request(endpoint, { ...options, method: 'PATCH', body });
+  patch: async (endpoint, data = {}, config = {}) => {
+    return axiosInstance.patch(endpoint, data, config);
   },
 
-  delete: (endpoint, options = {}) => {
-    return request(endpoint, { ...options, method: 'DELETE' });
+  delete: async (endpoint, config = {}) => {
+    return axiosInstance.delete(endpoint, config);
+  },
+
+  request: async (config) => {
+    return axiosInstance.request(config);
   },
 };
 

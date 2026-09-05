@@ -1,20 +1,46 @@
 import { employeeService } from './employeeService';
 import { departmentAdapter } from '../adapters/departmentAdapter';
+import { apiClient } from './apiClient';
 
 export const departmentService = {
   getDepartments: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.get('/departments', params);
+      if (apiRes?.success && apiRes?.data) {
+        const rawList = Array.isArray(apiRes.data) ? apiRes.data : apiRes.data.departments || [];
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawPositions = employeeService._getRawJobPositions();
+        const uiList = rawList.map((d) =>
+          departmentAdapter.toUIModel(d, rawEmployees, rawPositions)
+        );
+
+        return {
+          data: uiList,
+          total: apiRes.pagination?.total || uiList.length,
+          page: apiRes.pagination?.page || params.page || 1,
+          pageSize: apiRes.pagination?.limit || params.pageSize || 10,
+          totalPages:
+            apiRes.pagination?.totalPages ||
+            Math.ceil(uiList.length / (params.pageSize || 10)) ||
+            1,
+        };
+      }
+    } catch (err) {
+      console.warn('[departmentService] Live getDepartments failed, falling back to local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawDepts = employeeService._getRawDepartments();
         const rawEmployees = employeeService._getRawEmployees();
         const rawPositions = employeeService._getRawJobPositions();
 
-        // Convert to UI Models
         let list = rawDepts.map((d) =>
           departmentAdapter.toUIModel(d, rawEmployees, rawPositions)
         );
 
-        // Search filter (Department name, code, manager name)
         if (params.search && params.search.trim()) {
           const q = params.search.trim().toLowerCase();
           list = list.filter(
@@ -25,20 +51,17 @@ export const departmentService = {
           );
         }
 
-        // Manager filter
         const managerFilter = params.managerId || params.manager_id;
         if (managerFilter) {
           list = list.filter((d) => d.managerId === managerFilter);
         }
 
-        // Status filter
         if (params.status) {
           list = list.filter(
             (d) => d.status.toLowerCase() === params.status.toLowerCase()
           );
         }
 
-        // Sorting
         if (params.sortBy) {
           const key = params.sortBy;
           const dir = params.sortDirection === 'desc' ? -1 : 1;
@@ -57,7 +80,6 @@ export const departmentService = {
           });
         }
 
-        // Pagination
         const total = list.length;
         const page = params.page || 1;
         const pageSize = params.pageSize || 10;
@@ -76,6 +98,19 @@ export const departmentService = {
   },
 
   getDepartmentById: async (id) => {
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.get(`/departments/${id}`);
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawPositions = employeeService._getRawJobPositions();
+        return departmentAdapter.toUIModel(apiRes.data, rawEmployees, rawPositions);
+      }
+    } catch (err) {
+      console.warn(`[departmentService] Live getDepartmentById(${id}) failed, falling back:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawDepts = employeeService._getRawDepartments();
@@ -94,12 +129,28 @@ export const departmentService = {
   },
 
   createDepartment: async (formData) => {
+    const apiData = departmentAdapter.toAPIModel(formData);
+
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.post('/departments', apiData);
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawPositions = employeeService._getRawJobPositions();
+        return {
+          success: true,
+          department: departmentAdapter.toUIModel(apiRes.data, rawEmployees, rawPositions),
+        };
+      }
+    } catch (err) {
+      console.warn('[departmentService] Live createDepartment failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawDepts = employeeService._getRawDepartments();
-        const apiData = departmentAdapter.toAPIModel(formData);
 
-        // Validation: Unique Code
         const codeExists = rawDepts.some(
           (d) => d.code.toUpperCase() === apiData.code.toUpperCase()
         );
@@ -108,7 +159,6 @@ export const departmentService = {
           return;
         }
 
-        // Validation: Name
         if (!apiData.name) {
           reject(new Error('Department name is required.'));
           return;
@@ -140,6 +190,24 @@ export const departmentService = {
   },
 
   updateDepartment: async (id, formData) => {
+    const apiData = departmentAdapter.toAPIModel(formData);
+
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.put(`/departments/${id}`, apiData);
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawPositions = employeeService._getRawJobPositions();
+        return {
+          success: true,
+          department: departmentAdapter.toUIModel(apiRes.data, rawEmployees, rawPositions),
+        };
+      }
+    } catch (err) {
+      console.warn(`[departmentService] Live updateDepartment(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawDepts = employeeService._getRawDepartments();
@@ -149,9 +217,6 @@ export const departmentService = {
           return;
         }
 
-        const apiData = departmentAdapter.toAPIModel(formData);
-
-        // Code uniqueness check (excluding self)
         const codeExists = rawDepts.some(
           (d) => d.id !== id && d.code.toUpperCase() === apiData.code.toUpperCase()
         );
@@ -185,6 +250,17 @@ export const departmentService = {
   },
 
   deleteDepartment: async (id) => {
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.delete(`/departments/${id}`);
+      if (apiRes?.success) {
+        return { success: true };
+      }
+    } catch (err) {
+      console.warn(`[departmentService] Live deleteDepartment(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawDepts = employeeService._getRawDepartments();
@@ -196,6 +272,21 @@ export const departmentService = {
   },
 
   getDepartmentOptions: async () => {
+    try {
+      const apiRes = await apiClient.get('/departments', { limit: 100 });
+      if (apiRes?.success && apiRes?.data) {
+        const list = Array.isArray(apiRes.data) ? apiRes.data : apiRes.data.departments || [];
+        return list.map((d) => ({
+          id: d.id,
+          name: d.name,
+          code: d.code,
+          status: d.status,
+        }));
+      }
+    } catch {
+      // Fallback
+    }
+
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawDepts = employeeService._getRawDepartments();
@@ -211,3 +302,5 @@ export const departmentService = {
     });
   },
 };
+
+export default departmentService;

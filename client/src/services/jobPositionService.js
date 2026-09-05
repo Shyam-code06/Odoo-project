@@ -1,8 +1,47 @@
 import { employeeService } from './employeeService';
 import { jobPositionAdapter } from '../adapters/jobPositionAdapter';
+import { apiClient } from './apiClient';
 
 export const jobPositionService = {
   getJobPositions: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiParams = {
+        page: params.page || 1,
+        limit: params.pageSize || params.limit || 20,
+        search: params.search || undefined,
+        department_id: params.departmentId || params.department_id || undefined,
+        sortBy: params.sortBy || undefined,
+        sortOrder: params.sortDirection || params.sortOrder || undefined,
+      };
+      const apiRes = await apiClient.get('/job-positions', apiParams);
+      if (apiRes?.success && apiRes?.data) {
+        const rawPositions = Array.isArray(apiRes.data)
+          ? apiRes.data
+          : apiRes.data.jobPositions || [];
+        const rawDepts = employeeService._getRawDepartments();
+        const rawEmployees = employeeService._getRawEmployees();
+
+        const uiList = rawPositions.map((p) =>
+          jobPositionAdapter.toUIModel(p, rawDepts, rawEmployees)
+        );
+
+        return {
+          data: uiList,
+          total: apiRes.pagination?.total || uiList.length,
+          page: apiRes.pagination?.page || params.page || 1,
+          pageSize: apiRes.pagination?.limit || params.pageSize || 10,
+          totalPages:
+            apiRes.pagination?.totalPages ||
+            Math.ceil(uiList.length / (params.pageSize || 10)) ||
+            1,
+        };
+      }
+    } catch (err) {
+      console.warn('[jobPositionService] Live getJobPositions failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawPositions = employeeService._getRawJobPositions();
@@ -13,7 +52,6 @@ export const jobPositionService = {
           jobPositionAdapter.toUIModel(p, rawDepts, rawEmployees)
         );
 
-        // Search filter (title, code, department name)
         if (params.search && params.search.trim()) {
           const q = params.search.trim().toLowerCase();
           list = list.filter(
@@ -24,20 +62,17 @@ export const jobPositionService = {
           );
         }
 
-        // Department filter
         const deptFilter = params.departmentId || params.department_id;
         if (deptFilter) {
           list = list.filter((p) => p.departmentId === deptFilter);
         }
 
-        // Status filter
         if (params.status) {
           list = list.filter(
             (p) => p.status.toLowerCase() === params.status.toLowerCase()
           );
         }
 
-        // Sorting
         if (params.sortBy) {
           const key = params.sortBy;
           const dir = params.sortDirection === 'desc' ? -1 : 1;
@@ -56,7 +91,6 @@ export const jobPositionService = {
           });
         }
 
-        // Pagination
         const total = list.length;
         const page = params.page || 1;
         const pageSize = params.pageSize || 10;
@@ -75,6 +109,19 @@ export const jobPositionService = {
   },
 
   getJobPositionById: async (id) => {
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.get(`/job-positions/${id}`);
+      if (apiRes?.success && apiRes?.data) {
+        const rawDepts = employeeService._getRawDepartments();
+        const rawEmployees = employeeService._getRawEmployees();
+        return jobPositionAdapter.toUIModel(apiRes.data, rawDepts, rawEmployees);
+      }
+    } catch (err) {
+      console.warn(`[jobPositionService] Live getJobPositionById(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawPositions = employeeService._getRawJobPositions();
@@ -93,24 +140,38 @@ export const jobPositionService = {
   },
 
   createJobPosition: async (formData) => {
+    const apiData = jobPositionAdapter.toAPIModel(formData);
+
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.post('/job-positions', apiData);
+      if (apiRes?.success && apiRes?.data) {
+        const rawDepts = employeeService._getRawDepartments();
+        const rawEmployees = employeeService._getRawEmployees();
+        return {
+          success: true,
+          jobPosition: jobPositionAdapter.toUIModel(apiRes.data, rawDepts, rawEmployees),
+        };
+      }
+    } catch (err) {
+      console.warn('[jobPositionService] Live createJobPosition failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawPositions = employeeService._getRawJobPositions();
-        const apiData = jobPositionAdapter.toAPIModel(formData);
 
-        // Validation: Title
         if (!apiData.title) {
           reject(new Error('Job position title is required.'));
           return;
         }
 
-        // Validation: Department
         if (!apiData.department_id) {
           reject(new Error('Selecting a department is required.'));
           return;
         }
 
-        // Validation: Unique Code
         const codeExists = rawPositions.some(
           (p) => p.code.toUpperCase() === apiData.code.toUpperCase()
         );
@@ -145,6 +206,24 @@ export const jobPositionService = {
   },
 
   updateJobPosition: async (id, formData) => {
+    const apiData = jobPositionAdapter.toAPIModel(formData);
+
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.put(`/job-positions/${id}`, apiData);
+      if (apiRes?.success && apiRes?.data) {
+        const rawDepts = employeeService._getRawDepartments();
+        const rawEmployees = employeeService._getRawEmployees();
+        return {
+          success: true,
+          jobPosition: jobPositionAdapter.toUIModel(apiRes.data, rawDepts, rawEmployees),
+        };
+      }
+    } catch (err) {
+      console.warn(`[jobPositionService] Live updateJobPosition(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawPositions = employeeService._getRawJobPositions();
@@ -154,21 +233,16 @@ export const jobPositionService = {
           return;
         }
 
-        const apiData = jobPositionAdapter.toAPIModel(formData);
-
-        // Validation: Title
         if (!apiData.title) {
           reject(new Error('Job position title is required.'));
           return;
         }
 
-        // Validation: Department
         if (!apiData.department_id) {
           reject(new Error('Selecting a department is required.'));
           return;
         }
 
-        // Code uniqueness check (excluding self)
         const codeExists = rawPositions.some(
           (p) => p.id !== id && p.code.toUpperCase() === apiData.code.toUpperCase()
         );
@@ -202,6 +276,17 @@ export const jobPositionService = {
   },
 
   deleteJobPosition: async (id) => {
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.delete(`/job-positions/${id}`);
+      if (apiRes?.success) {
+        return { success: true };
+      }
+    } catch (err) {
+      console.warn(`[jobPositionService] Live deleteJobPosition(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawPositions = employeeService._getRawJobPositions();
@@ -213,21 +298,42 @@ export const jobPositionService = {
   },
 
   getJobPositionOptions: async (departmentId = null) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        let rawPositions = employeeService._getRawJobPositions();
-        if (departmentId) {
-          rawPositions = rawPositions.filter((p) => p.department_id === departmentId);
-        }
-        resolve(
-          rawPositions.map((p) => ({
-            id: p.id,
-            title: p.title,
-            code: p.code,
-            department_id: p.department_id,
-          }))
-        );
-      }, 100);
-    });
+    try {
+      const cleanDeptId = departmentId ? Number(departmentId) : null;
+      const params = {
+        limit: 100,
+        ...(cleanDeptId ? { department_id: cleanDeptId } : {})
+      };
+      const apiRes = await apiClient.get('/job-positions', params);
+      const list = Array.isArray(apiRes?.data)
+        ? apiRes.data
+        : (Array.isArray(apiRes?.data?.data) ? apiRes.data.data : []);
+      if (list && list.length > 0) {
+        const filtered = cleanDeptId
+          ? list.filter((p) => Number(p.department_id) === cleanDeptId)
+          : list;
+        return filtered.map((p) => ({
+          id: p.id,
+          title: p.title || p.name,
+          code: p.code,
+          department_id: p.department_id,
+        }));
+      }
+    } catch (err) {
+      console.warn('[jobPositionService] Live getJobPositionOptions failed:', err.message);
+    }
+
+    let rawPositions = employeeService._getRawJobPositions();
+    if (departmentId) {
+      rawPositions = rawPositions.filter((p) => String(p.department_id) === String(departmentId));
+    }
+    return rawPositions.map((p) => ({
+      id: p.id,
+      title: p.title || p.name,
+      code: p.code,
+      department_id: p.department_id,
+    }));
   },
 };
+
+export default jobPositionService;

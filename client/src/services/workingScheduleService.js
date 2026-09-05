@@ -1,9 +1,54 @@
 import { employeeService } from './employeeService';
 import { workingScheduleAdapter } from '../adapters/workingScheduleAdapter';
 import { validateDaySchedule } from '../utils/scheduleCalculator';
+import { apiClient } from './apiClient';
 
 export const workingScheduleService = {
   getWorkingSchedules: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.get('/schedules', params);
+      if (apiRes?.success && apiRes?.data) {
+        const rawSchedules = Array.isArray(apiRes.data)
+          ? apiRes.data
+          : apiRes.data.schedules || [];
+        const rawEmployees = employeeService._getRawEmployees();
+
+        const uiList = rawSchedules.map((s) =>
+          workingScheduleAdapter.toUIModel(s, rawEmployees)
+        );
+
+        const totalSchedules = uiList.length;
+        const activeSchedules = uiList.filter(
+          (s) => (s.status || 'Active') === 'Active'
+        ).length;
+        const inactiveSchedules = totalSchedules - activeSchedules;
+        const totalAssignedEmployees = rawEmployees.filter(
+          (e) => e.working_schedule_id
+        ).length;
+
+        return {
+          data: uiList,
+          metrics: {
+            totalSchedules,
+            activeSchedules,
+            inactiveSchedules,
+            totalAssignedEmployees,
+          },
+          total: apiRes.pagination?.total || uiList.length,
+          page: apiRes.pagination?.page || params.page || 1,
+          pageSize: apiRes.pagination?.limit || params.pageSize || 10,
+          totalPages:
+            apiRes.pagination?.totalPages ||
+            Math.ceil(uiList.length / (params.pageSize || 10)) ||
+            1,
+        };
+      }
+    } catch (err) {
+      console.warn('[workingScheduleService] Live getWorkingSchedules failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawSchedules = employeeService._getRawSchedules();
@@ -13,7 +58,6 @@ export const workingScheduleService = {
           workingScheduleAdapter.toUIModel(s, rawEmployees)
         );
 
-        // Search filter (name, description, timezone)
         if (params.search && params.search.trim()) {
           const q = params.search.trim().toLowerCase();
           list = list.filter(
@@ -24,27 +68,29 @@ export const workingScheduleService = {
           );
         }
 
-        // Status filter
         if (params.status) {
           list = list.filter(
             (s) => s.status.toLowerCase() === params.status.toLowerCase()
           );
         }
 
-        // Timezone filter
         if (params.timezone) {
           list = list.filter(
             (s) => s.timezone.toLowerCase() === params.timezone.toLowerCase()
           );
         }
 
-        // Summary metrics
         const totalSchedules = rawSchedules.length;
-        const activeSchedules = rawSchedules.filter((s) => (s.status || 'Active') === 'Active').length;
-        const inactiveSchedules = rawSchedules.filter((s) => s.status === 'Inactive').length;
-        const totalAssignedEmployees = rawEmployees.filter((e) => e.working_schedule_id).length;
+        const activeSchedules = rawSchedules.filter(
+          (s) => (s.status || 'Active') === 'Active'
+        ).length;
+        const inactiveSchedules = rawSchedules.filter(
+          (s) => s.status === 'Inactive'
+        ).length;
+        const totalAssignedEmployees = rawEmployees.filter(
+          (e) => e.working_schedule_id
+        ).length;
 
-        // Sorting
         if (params.sortBy) {
           const key = params.sortBy;
           const dir = params.sortDirection === 'desc' ? -1 : 1;
@@ -58,7 +104,6 @@ export const workingScheduleService = {
           });
         }
 
-        // Pagination
         const total = list.length;
         const page = params.page || 1;
         const pageSize = params.pageSize || 10;
@@ -67,22 +112,34 @@ export const workingScheduleService = {
 
         resolve({
           data: paginated,
-          total,
-          page,
-          pageSize,
-          totalPages: Math.ceil(total / pageSize) || 1,
-          summary: {
+          metrics: {
             totalSchedules,
             activeSchedules,
             inactiveSchedules,
             totalAssignedEmployees,
           },
+          total,
+          page,
+          pageSize,
+          totalPages: Math.ceil(total / pageSize) || 1,
         });
       }, 200);
     });
   },
 
   getWorkingScheduleById: async (id) => {
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.get(`/schedules/${id}`);
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        return workingScheduleAdapter.toUIModel(apiRes.data, rawEmployees);
+      }
+    } catch (err) {
+      console.warn(`[workingScheduleService] Live getWorkingScheduleById(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawSchedules = employeeService._getRawSchedules();
@@ -100,10 +157,26 @@ export const workingScheduleService = {
   },
 
   createWorkingSchedule: async (formData) => {
+    const apiData = workingScheduleAdapter.toAPIModel(formData);
+
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.post('/schedules', apiData);
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        return {
+          success: true,
+          schedule: workingScheduleAdapter.toUIModel(apiRes.data, rawEmployees),
+        };
+      }
+    } catch (err) {
+      console.warn('[workingScheduleService] Live createWorkingSchedule failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawSchedules = employeeService._getRawSchedules();
-        const apiData = workingScheduleAdapter.toAPIModel(formData);
 
         if (!apiData.name) {
           reject(new Error('Schedule name is required.'));
@@ -115,9 +188,13 @@ export const workingScheduleService = {
           return;
         }
 
-        // Validate individual day schedules
-        for (const day of apiData.days) {
-          const err = validateDaySchedule(day.startTime, day.endTime, day.breakMinutes, day.isWorkingDay);
+        for (const day of apiData.days || []) {
+          const err = validateDaySchedule(
+            day.startTime,
+            day.endTime,
+            day.breakMinutes,
+            day.isWorkingDay
+          );
           if (err) {
             reject(new Error(`${day.dayOfWeek}: ${err}`));
             return;
@@ -149,6 +226,23 @@ export const workingScheduleService = {
   },
 
   updateWorkingSchedule: async (id, formData) => {
+    const apiData = workingScheduleAdapter.toAPIModel(formData);
+
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.put(`/schedules/${id}`, apiData);
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        return {
+          success: true,
+          schedule: workingScheduleAdapter.toUIModel(apiRes.data, rawEmployees),
+        };
+      }
+    } catch (err) {
+      console.warn(`[workingScheduleService] Live updateWorkingSchedule(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawSchedules = employeeService._getRawSchedules();
@@ -157,8 +251,6 @@ export const workingScheduleService = {
           reject(new Error('Working schedule not found.'));
           return;
         }
-
-        const apiData = workingScheduleAdapter.toAPIModel(formData);
 
         if (!apiData.name) {
           reject(new Error('Schedule name is required.'));
@@ -170,8 +262,13 @@ export const workingScheduleService = {
           return;
         }
 
-        for (const day of apiData.days) {
-          const err = validateDaySchedule(day.startTime, day.endTime, day.breakMinutes, day.isWorkingDay);
+        for (const day of apiData.days || []) {
+          const err = validateDaySchedule(
+            day.startTime,
+            day.endTime,
+            day.breakMinutes,
+            day.isWorkingDay
+          );
           if (err) {
             reject(new Error(`${day.dayOfWeek}: ${err}`));
             return;
@@ -201,34 +298,18 @@ export const workingScheduleService = {
     });
   },
 
-  toggleScheduleStatus: async (id) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const rawSchedules = employeeService._getRawSchedules();
-        const idx = rawSchedules.findIndex((s) => s.id === id);
-        if (idx === -1) {
-          reject(new Error('Working schedule not found.'));
-          return;
-        }
-
-        const currentStatus = rawSchedules[idx].status || 'Active';
-        const nextStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
-
-        rawSchedules[idx].status = nextStatus;
-        rawSchedules[idx].updated_at = new Date().toISOString();
-
-        employeeService._setRawSchedules([...rawSchedules]);
-
-        const rawEmployees = employeeService._getRawEmployees();
-        resolve({
-          success: true,
-          schedule: workingScheduleAdapter.toUIModel(rawSchedules[idx], rawEmployees),
-        });
-      }, 200);
-    });
-  },
-
   deleteWorkingSchedule: async (id) => {
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.delete(`/schedules/${id}`);
+      if (apiRes?.success) {
+        return { success: true };
+      }
+    } catch (err) {
+      console.warn(`[workingScheduleService] Live deleteWorkingSchedule(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawSchedules = employeeService._getRawSchedules();
@@ -238,24 +319,6 @@ export const workingScheduleService = {
       }, 200);
     });
   },
-
-  getScheduleOptions: async () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const rawSchedules = employeeService._getRawSchedules();
-        const rawEmployees = employeeService._getRawEmployees();
-        resolve(
-          rawSchedules.map((s) => {
-            const uiModel = workingScheduleAdapter.toUIModel(s, rawEmployees);
-            return {
-              id: s.id,
-              name: `${s.name} (${uiModel.totalWeeklyShort} / wk)`,
-              timezone: s.timezone,
-              status: s.status || 'Active',
-            };
-          })
-        );
-      }, 100);
-    });
-  },
 };
+
+export default workingScheduleService;

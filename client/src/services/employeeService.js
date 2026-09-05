@@ -32,33 +32,66 @@ import {
   getRawPayslipLines,
   setRawPayslipLines,
 } from '../mocks';
+import { apiClient } from './apiClient';
 
 // Helper to populate reference entity names
 const populateEmployee = (emp) => {
   if (!emp) return null;
-  const dept = getRawDepartments().find((d) => d.id === emp.department_id);
-  const pos = getRawJobPositions().find((p) => p.id === emp.job_position_id);
-  const mgr = getRawEmployees().find((m) => m.id === emp.manager_id);
-  const sched = getRawSchedules().find((s) => s.id === emp.working_schedule_id);
+  const dept = getRawDepartments().find((d) => d.id === (emp.department_id || emp.departmentId));
+  const pos = getRawJobPositions().find((p) => p.id === (emp.job_position_id || emp.jobPositionId));
+  const mgr = getRawEmployees().find((m) => m.id === (emp.manager_id || emp.managerId));
+  const sched = getRawSchedules().find((s) => s.id === (emp.working_schedule_id || emp.workingScheduleId));
 
   return {
     ...emp,
-    fullName: `${emp.first_name} ${emp.last_name}`,
-    departmentName: dept ? dept.name : 'Unassigned',
-    jobPositionTitle: pos ? pos.title : 'Unassigned',
-    managerName: mgr ? `${mgr.first_name} ${mgr.last_name}` : 'None (Top Level)',
-    workingScheduleName: sched ? sched.name : 'Standard Shift',
-    relatedCounts: {
-      contracts: 2,
-      attendance: 24,
-      timeOff: 3,
-      allocations: 4,
+    fullName:
+      emp.fullName ||
+      `${emp.first_name || ''} ${emp.last_name || ''}`.trim() ||
+      emp.name ||
+      'Employee',
+    departmentName: emp.department_name || (dept ? dept.name : 'Unassigned'),
+    jobPositionTitle: emp.job_position_title || (pos ? pos.title : 'Unassigned'),
+    managerName:
+      emp.manager_name ||
+      (mgr ? `${mgr.first_name} ${mgr.last_name}` : 'None (Top Level)'),
+    workingScheduleName:
+      emp.working_schedule_name || (sched ? sched.name : 'Standard Shift'),
+    relatedCounts: emp.relatedCounts || {
+      contracts: emp.summary?.contracts_count ?? 0,
+      attendance: emp.summary?.attendance_count ?? 0,
+      timeOff: emp.summary?.time_off_requests_count ?? 0,
+      allocations: 0,
     },
   };
 };
 
 export const employeeService = {
   getEmployees: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.get('/employees', params);
+      if (apiRes?.success && apiRes?.data) {
+        const rawList = Array.isArray(apiRes.data)
+          ? apiRes.data
+          : apiRes.data.employees || [];
+        const formatted = rawList.map(populateEmployee);
+
+        return {
+          data: formatted,
+          total: apiRes.pagination?.total || formatted.length,
+          page: apiRes.pagination?.page || params.page || 1,
+          pageSize: apiRes.pagination?.limit || params.pageSize || 10,
+          totalPages:
+            apiRes.pagination?.totalPages ||
+            Math.ceil(formatted.length / (params.pageSize || 10)) ||
+            1,
+        };
+      }
+    } catch (err) {
+      console.warn('[employeeService] Live getEmployees failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         let result = getRawEmployees().map(populateEmployee);
@@ -69,8 +102,8 @@ export const employeeService = {
           result = result.filter(
             (e) =>
               e.fullName.toLowerCase().includes(q) ||
-              e.employee_code.toLowerCase().includes(q) ||
-              e.email.toLowerCase().includes(q)
+              (e.employee_code && e.employee_code.toLowerCase().includes(q)) ||
+              (e.email && e.email.toLowerCase().includes(q))
           );
         }
 
@@ -86,7 +119,9 @@ export const employeeService = {
         }
         if (params.employment_status) {
           result = result.filter(
-            (e) => e.employment_status.toLowerCase() === params.employment_status.toLowerCase()
+            (e) =>
+              e.employment_status &&
+              e.employment_status.toLowerCase() === params.employment_status.toLowerCase()
           );
         }
         if (params.working_schedule_id) {
@@ -125,6 +160,17 @@ export const employeeService = {
   },
 
   getEmployeeById: async (id) => {
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.get(`/employees/${id}`);
+      if (apiRes?.success && apiRes?.data) {
+        return populateEmployee(apiRes.data);
+      }
+    } catch (err) {
+      console.warn(`[employeeService] Live getEmployeeById(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const emp = getRawEmployees().find((e) => e.id === id);
@@ -134,63 +180,59 @@ export const employeeService = {
   },
 
   createEmployee: async (data) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const employees = getRawEmployees();
-        const newId = `emp-${Date.now()}`;
-        const autoCode = data.employee_code || `EMP-2026-${String(employees.length + 1).padStart(3, '0')}`;
-
-        const newEmp = {
-          id: newId,
-          employee_code: autoCode,
-          first_name: data.first_name || '',
-          last_name: data.last_name || '',
-          email: data.email || '',
-          phone: data.phone || '',
-          date_of_birth: data.date_of_birth || '',
-          address: data.address || '',
-          department_id: data.department_id || 'dept-001',
-          job_position_id: data.job_position_id || 'pos-001',
-          manager_id: data.manager_id || null,
-          joining_date: data.joining_date || new Date().toISOString().split('T')[0],
-          employment_status: data.employment_status || 'Active',
-          working_schedule_id: data.working_schedule_id || 'sched-001',
-          avatar: data.avatar || '',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        employees.unshift(newEmp);
-        setRawEmployees(employees);
-        resolve({ success: true, employee: populateEmployee(newEmp) });
-      }, 300);
-    });
+    try {
+      const apiRes = await apiClient.post('/employees', data);
+      if (apiRes?.success && apiRes?.data) {
+        return { success: true, employee: populateEmployee(apiRes.data) };
+      }
+      return { success: false, error: apiRes?.message || 'Failed to create employee record.' };
+    } catch (err) {
+      console.error('[employeeService] Live createEmployee failed:', err);
+      const detailedErrors = err.data?.errors || err.response?.data?.errors;
+      const errorMsg =
+        detailedErrors && Array.isArray(detailedErrors)
+          ? detailedErrors.map((e) => e.message || `${e.field}: invalid`).join(', ')
+          : (err.data?.message || err.response?.data?.message || err.message || 'Failed to create employee record.');
+      return {
+        success: false,
+        error: errorMsg
+      };
+    }
   },
 
   updateEmployee: async (id, data) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const employees = getRawEmployees();
-        const idx = employees.findIndex((e) => e.id === id);
-        if (idx === -1) {
-          resolve({ success: false, error: 'Employee record not found.' });
-          return;
-        }
-
-        const updated = {
-          ...employees[idx],
-          ...data,
-          updated_at: new Date().toISOString(),
-        };
-
-        employees[idx] = updated;
-        setRawEmployees(employees);
-        resolve({ success: true, employee: populateEmployee(updated) });
-      }, 300);
-    });
+    try {
+      const apiRes = await apiClient.put(`/employees/${id}`, data);
+      if (apiRes?.success && apiRes?.data) {
+        return { success: true, employee: populateEmployee(apiRes.data) };
+      }
+      return { success: false, error: apiRes?.message || 'Failed to update employee record.' };
+    } catch (err) {
+      console.error(`[employeeService] Live updateEmployee(${id}) failed:`, err);
+      const detailedErrors = err.data?.errors || err.response?.data?.errors;
+      const errorMsg =
+        detailedErrors && Array.isArray(detailedErrors)
+          ? detailedErrors.map((e) => e.message || `${e.field}: invalid`).join(', ')
+          : (err.data?.message || err.response?.data?.message || err.message || 'Failed to update employee record.');
+      return {
+        success: false,
+        error: errorMsg
+      };
+    }
   },
 
   deleteEmployee: async (id) => {
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.delete(`/employees/${id}`);
+      if (apiRes?.success) {
+        return { success: true };
+      }
+    } catch (err) {
+      console.warn(`[employeeService] Live deleteEmployee(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const employees = getRawEmployees().filter((e) => e.id !== id);
@@ -202,24 +244,87 @@ export const employeeService = {
 
   // Lookup Entities Option Getters
   getDepartmentOptions: async () => {
+    try {
+      const apiRes = await apiClient.get('/departments', { limit: 100 });
+      if (apiRes?.success && Array.isArray(apiRes.data)) return apiRes.data;
+    } catch {
+      // Fallback
+    }
     return getRawDepartments();
   },
 
   getJobPositionOptions: async (departmentId = null) => {
-    if (departmentId) {
-      return getRawJobPositions().filter((p) => p.department_id === departmentId);
+    try {
+      const cleanDeptId = departmentId ? Number(departmentId) : null;
+      const params = {
+        limit: 100,
+        ...(cleanDeptId ? { department_id: cleanDeptId } : {})
+      };
+      const apiRes = await apiClient.get('/job-positions', params);
+      const list = Array.isArray(apiRes?.data)
+        ? apiRes.data
+        : (Array.isArray(apiRes?.data?.data) ? apiRes.data.data : []);
+      if (list && list.length > 0) {
+        const filtered = cleanDeptId
+          ? list.filter((p) => Number(p.department_id) === cleanDeptId)
+          : list;
+        return filtered.map((p) => ({
+          id: p.id,
+          title: p.title || p.name,
+          code: p.code,
+          department_id: p.department_id,
+        }));
+      }
+    } catch (err) {
+      console.warn('[employeeService] Live getJobPositionOptions failed:', err.message);
     }
-    return getRawJobPositions();
-  },
-
-  getManagerOptions: async (excludeEmployeeId = null) => {
-    return getRawEmployees().filter((e) => e.id !== excludeEmployeeId).map((e) => ({
-      id: e.id,
-      name: `${e.first_name} ${e.last_name}`,
+    if (departmentId) {
+      return getRawJobPositions()
+        .filter((p) => String(p.department_id) === String(departmentId))
+        .map((p) => ({
+          id: p.id,
+          title: p.title || p.name,
+          code: p.code,
+          department_id: p.department_id,
+        }));
+    }
+    return getRawJobPositions().map((p) => ({
+      id: p.id,
+      title: p.title || p.name,
+      code: p.code,
+      department_id: p.department_id,
     }));
   },
 
+  getManagerOptions: async (excludeEmployeeId = null) => {
+    try {
+      const apiRes = await apiClient.get('/employees', { pageSize: 100 });
+      if (apiRes?.success && Array.isArray(apiRes.data)) {
+        return apiRes.data
+          .filter((e) => e.id !== excludeEmployeeId)
+          .map((e) => ({
+            id: e.id,
+            name: `${e.first_name || ''} ${e.last_name || ''}`.trim() || e.fullName || e.name,
+          }));
+      }
+    } catch {
+      // Fallback
+    }
+    return getRawEmployees()
+      .filter((e) => e.id !== excludeEmployeeId)
+      .map((e) => ({
+        id: e.id,
+        name: `${e.first_name} ${e.last_name}`,
+      }));
+  },
+
   getScheduleOptions: async () => {
+    try {
+      const apiRes = await apiClient.get('/schedules');
+      if (apiRes?.success && Array.isArray(apiRes.data)) return apiRes.data;
+    } catch {
+      // Fallback
+    }
     return getRawSchedules();
   },
 
@@ -257,3 +362,5 @@ export const employeeService = {
   _getRawPayslipLines: () => getRawPayslipLines(),
   _setRawPayslipLines: (lines) => setRawPayslipLines(lines),
 };
+
+export default employeeService;

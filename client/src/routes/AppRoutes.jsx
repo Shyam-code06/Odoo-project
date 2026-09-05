@@ -63,6 +63,7 @@ import PayrunProcessingPage from '../pages/payroll/payruns/PayrunProcessingPage'
 
 import PayslipListPage from '../pages/payroll/payslips/PayslipListPage';
 import PayslipDetailsPage from '../pages/payroll/payslips/PayslipDetailsPage';
+import UserManagementPage from '../pages/admin/UserManagementPage';
 
 import { PERMISSIONS, ROLES } from '../config/permissions';
 
@@ -684,8 +685,8 @@ export const AppRoutes = () => {
           <Route path="/reports/time-off" element={<RoleRoute requiredPermission={PERMISSIONS.REPORTS_VIEW}><PlaceholderPage title="Time Off Reports" part="12" iconName="BarChart3" /></RoleRoute>} />
 
           {/* Administration Routes (Part 13) */}
-          <Route path="/admin/users" element={<RoleRoute requiredPermission={PERMISSIONS.USERS_VIEW}><PlaceholderPage title="System Users" part="13" iconName="UserCheck" /></RoleRoute>} />
-          <Route path="/admin/users/:id" element={<RoleRoute requiredPermission={PERMISSIONS.USERS_VIEW}><PlaceholderPage title="User Detail" part="13" iconName="UserCheck" /></RoleRoute>} />
+          <Route path="/admin/users" element={<RoleRoute requiredPermission={PERMISSIONS.USERS_VIEW}><UserManagementPage /></RoleRoute>} />
+          <Route path="/admin/users/:id" element={<RoleRoute requiredPermission={PERMISSIONS.USERS_VIEW}><UserManagementPage /></RoleRoute>} />
           <Route path="/admin/roles" element={<RoleRoute requiredPermission={PERMISSIONS.ROLES_VIEW}><PlaceholderPage title="Roles & Permissions" part="13" iconName="ShieldCheck" /></RoleRoute>} />
           <Route path="/admin/roles/:id" element={<RoleRoute requiredPermission={PERMISSIONS.ROLES_VIEW}><PlaceholderPage title="Role Detail" part="13" iconName="ShieldCheck" /></RoleRoute>} />
           <Route path="/admin/settings" element={<RoleRoute requiredPermission={PERMISSIONS.SETTINGS_VIEW}><PlaceholderPage title="System Settings" part="13" iconName="Settings" /></RoleRoute>} />

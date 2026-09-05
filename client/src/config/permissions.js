@@ -220,25 +220,61 @@ export const ROLE_PERMISSIONS = {
   [ROLES.ADMIN]: Object.values(PERMISSIONS),
 };
 
+// Normalize role strings (e.g. 'ADMIN', 'admin', 'HR_MANAGER', 'hr manager') to canonical ROLES
+export const normalizeRole = (role) => {
+  if (!role) return ROLES.EMPLOYEE;
+  const trimmed = String(role).trim();
+  const upper = trimmed.toUpperCase().replace(/[\s_-]+/g, '_');
+
+  switch (upper) {
+    case 'ADMIN':
+    case 'ADMINISTRATOR':
+      return ROLES.ADMIN;
+    case 'HR_MANAGER':
+    case 'HRMANAGER':
+      return ROLES.HR_MANAGER;
+    case 'HR_PAYROLL_MANAGER':
+    case 'HRPAYROLLMANAGER':
+      return ROLES.HR_PAYROLL_MANAGER;
+    case 'HR_PAYROLL_USER':
+    case 'HRPAYROLLUSER':
+      return ROLES.HR_PAYROLL_USER;
+    case 'EMPLOYEE':
+    case 'USER':
+    case 'STAFF':
+      return ROLES.EMPLOYEE;
+    default:
+      for (const val of Object.values(ROLES)) {
+        if (val.toLowerCase() === trimmed.toLowerCase()) return val;
+      }
+      return ROLES.EMPLOYEE;
+  }
+};
+
 // Check if a given role has a specific permission
 export const hasPermission = (userRole, permission) => {
   if (!userRole) return false;
-  if (userRole === ROLES.ADMIN) return true;
-  const userPerms = ROLE_PERMISSIONS[userRole] || [];
+  const canonical = normalizeRole(userRole);
+  if (canonical === ROLES.ADMIN) return true;
+  const userPerms = ROLE_PERMISSIONS[canonical] || [];
   return userPerms.includes(permission);
 };
 
 // Check if a given role has ANY of the permissions in array
 export const hasAnyPermission = (userRole, permissionsArray = []) => {
   if (!userRole) return false;
-  if (userRole === ROLES.ADMIN) return true;
+  const canonical = normalizeRole(userRole);
+  if (canonical === ROLES.ADMIN) return true;
   if (permissionsArray.length === 0) return true;
-  return permissionsArray.some((perm) => hasPermission(userRole, perm));
+  return permissionsArray.some((perm) => hasPermission(canonical, perm));
 };
 
 // Legacy role permission check backwards compatibility helper
 export const hasRolePermission = (userRole, allowedRoles) => {
   if (!allowedRoles || allowedRoles.length === 0) return true;
   if (!userRole) return false;
-  return allowedRoles.includes(userRole) || userRole === ROLES.ADMIN;
+  const canonical = normalizeRole(userRole);
+  if (canonical === ROLES.ADMIN) return true;
+  const normalizedAllowed = allowedRoles.map((r) => normalizeRole(r));
+  return normalizedAllowed.includes(canonical);
 };

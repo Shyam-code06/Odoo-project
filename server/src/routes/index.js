@@ -17,11 +17,15 @@ import payrunRoutes from './payrunRoutes.js';
 import payslipRoutes from './payslipRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js';
 import reportRoutes from './reportRoutes.js';
+import userRoutes from './userRoutes.js';
 
 const router = Router();
 
 // Authentication routes
 router.use('/auth', authRoutes);
+
+// System Users Management (Admin)
+router.use('/users', userRoutes);
 
 // RBAC testing routes
 router.use('/rbac-test', rbacTestRoutes);

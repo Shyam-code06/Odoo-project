@@ -18,7 +18,7 @@ export const payslipService = {
   getPayslips: async (params = {}) => {
     // 1. Attempt live HTTP REST API call via apiClient
     try {
-      const apiRes = await apiClient.get('/payroll/payslips', params);
+      const apiRes = await apiClient.get('/payslips', params);
       if (apiRes && apiRes.success && apiRes.data) {
         return apiRes;
       }
@@ -174,7 +174,7 @@ export const payslipService = {
 
   getPayslipById: async (id) => {
     try {
-      const apiRes = await apiClient.get(`/payroll/payslips/${id}`);
+      const apiRes = await apiClient.get(`/payslips/${id}`);
       if (apiRes && apiRes.success && apiRes.data) {
         return apiRes;
       }

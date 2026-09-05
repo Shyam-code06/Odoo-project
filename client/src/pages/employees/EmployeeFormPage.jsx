@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Save, ArrowLeft, UserPlus, UserCheck, AlertCircle } from 'lucide-react';
+import { Save, ArrowLeft, UserPlus, UserCheck, AlertCircle, ShieldCheck, Key } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -32,8 +32,11 @@ export const EmployeeFormPage = () => {
     manager_id: '',
     joining_date: new Date().toISOString().split('T')[0],
     employment_status: 'Active',
-    working_schedule_id: 'sched-001',
+    working_schedule_id: 1,
     avatar: '',
+    create_portal_account: !isEditMode,
+    password: '',
+    role_id: '4', // Default: Employee
   });
 
   const [errors, setErrors] = useState({});
@@ -51,7 +54,17 @@ export const EmployeeFormPage = () => {
     // Load lookup options
     employeeService.getDepartmentOptions().then(setDepartments);
     employeeService.getManagerOptions(id).then(setManagers);
-    employeeService.getScheduleOptions().then(setSchedules);
+    employeeService.getScheduleOptions().then((opts) => {
+      if (Array.isArray(opts) && opts.length > 0) {
+        setSchedules(opts);
+        if (!isEditMode) {
+          setFormData((prev) => ({
+            ...prev,
+            working_schedule_id: prev.working_schedule_id || opts[0].id
+          }));
+        }
+      }
+    });
 
     if (isEditMode) {
       employeeService.getEmployeeById(id).then((emp) => {
@@ -82,9 +95,16 @@ export const EmployeeFormPage = () => {
 
   // Cascading Job Positions based on Department selection
   useEffect(() => {
+    if (!formData.department_id) {
+      setPositions([]);
+      return;
+    }
     employeeService
-      .getJobPositionOptions(formData.department_id || null)
-      .then(setPositions);
+      .getJobPositionOptions(formData.department_id)
+      .then((res) => {
+        setPositions(Array.isArray(res) ? res : []);
+      })
+      .catch(() => setPositions([]));
   }, [formData.department_id]);
 
   const handleChange = (key, value) => {
@@ -120,6 +140,18 @@ export const EmployeeFormPage = () => {
     if (!formData.job_position_id) newErrors.job_position_id = 'Job position selection is required.';
     if (!formData.joining_date) newErrors.joining_date = 'Joining date is required.';
     if (!formData.employment_status) newErrors.employment_status = 'Employment status is required.';
+
+    // Validate Portal Account Credentials
+    if (!isEditMode && formData.create_portal_account) {
+      if (!formData.password || formData.password.trim().length < 6) {
+        newErrors.password = 'Password must be at least 6 characters.';
+      }
+      if (!formData.role_id) {
+        newErrors.role_id = 'Please select a system role.';
+      }
+    } else if (isEditMode && formData.password && formData.password.trim().length < 6) {
+      newErrors.password = 'Password must be at least 6 characters.';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -274,7 +306,7 @@ export const EmployeeFormPage = () => {
               label="Job Position"
               value={formData.job_position_id}
               onChange={(e) => handleChange('job_position_id', e.target.value)}
-              options={positions.map((p) => ({ value: p.id, label: p.title }))}
+              options={positions.map((p) => ({ value: p.id, label: p.title || p.name || p.code || `Position #${p.id}` }))}
               placeholder={formData.department_id ? "Select Job Position..." : "Select Department first"}
               error={errors.job_position_id}
               isDisabled={!formData.department_id}
@@ -316,6 +348,65 @@ export const EmployeeFormPage = () => {
               onChange={(e) => handleChange('avatar', e.target.value)}
             />
           </CardBody>
+        </Card>
+
+        {/* Portal Login Credentials & Role Assignment */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-800 dark:text-slate-100">
+                <ShieldCheck className="w-5 h-5 text-orange-600" />
+                Portal Login & Role-Based Access
+              </CardTitle>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                {isEditMode
+                  ? 'Update portal credentials or assign a new system role for this employee.'
+                  : 'Assign system permissions and create login credentials for the employee portal.'}
+              </p>
+            </div>
+            {!isEditMode && (
+              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700 select-none">
+                <input
+                  type="checkbox"
+                  checked={formData.create_portal_account}
+                  onChange={(e) => handleChange('create_portal_account', e.target.checked)}
+                  className="rounded border-slate-300 text-orange-600 focus:ring-orange-500 h-4 w-4"
+                />
+                Enable Portal Access
+              </label>
+            )}
+          </CardHeader>
+          {(formData.create_portal_account || isEditMode) && (
+            <CardBody className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <Input
+                label={isEditMode ? 'New Login Password (leave blank to keep current)' : 'Login Password'}
+                type="password"
+                placeholder={isEditMode ? 'Enter new password to change' : 'Min 6 characters (e.g. Pass@123)'}
+                value={formData.password}
+                onChange={(e) => handleChange('password', e.target.value)}
+                error={errors.password}
+                isRequired={!isEditMode && formData.create_portal_account}
+                isPasswordToggleable
+                helperText="Employee uses their Work Email and this password to sign in."
+              />
+
+              <Select
+                label="Assigned System Role"
+                value={formData.role_id}
+                onChange={(e) => handleChange('role_id', e.target.value)}
+                options={[
+                  { value: '4', label: 'Employee (Self-Service: Attendance, Leaves & Payslips)' },
+                  { value: '2', label: 'HR Manager (Full HR, Attendance & Workforce Ops)' },
+                  { value: '5', label: 'HR Payroll Manager (Full HR & Payroll Control)' },
+                  { value: '6', label: 'HR Payroll User (Payroll Processing & Payslips)' },
+                  { value: '1', label: 'Admin (System Administrator & User Management)' },
+                ]}
+                error={errors.role_id}
+                isRequired={!isEditMode && formData.create_portal_account}
+                helperText="Determines access permissions, sidebar modules, and capabilities."
+              />
+            </CardBody>
+          )}
         </Card>
 
         {/* Submit Actions */}

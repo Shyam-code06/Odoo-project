@@ -25,6 +25,7 @@ router.post('/login', validateLogin, login);
  * @access  Public
  */
 router.post('/refresh', refresh);
+router.post('/refresh-token', refresh);
 
 /**
  * @route   POST /auth/logout

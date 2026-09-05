@@ -45,7 +45,8 @@ export class JobPositionService {
         'job_positions.created_at',
         'job_positions.updated_at',
         'departments.name as department_name',
-        'departments.code as department_code'
+        'departments.code as department_code',
+        db.raw('(SELECT COUNT(id) FROM employees WHERE employees.job_position_id = job_positions.id) as employee_count')
       )
       .orderBy(sortBy, sortOrder)
       .limit(limit)
@@ -79,7 +80,8 @@ export class JobPositionService {
         'job_positions.created_at',
         'job_positions.updated_at',
         'departments.name as department_name',
-        'departments.code as department_code'
+        'departments.code as department_code',
+        db.raw('(SELECT COUNT(id) FROM employees WHERE employees.job_position_id = job_positions.id) as employee_count')
       )
       .first();
 

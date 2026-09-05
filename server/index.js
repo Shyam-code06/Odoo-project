@@ -12,20 +12,42 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration (allow credentials for cookies)
+// CORS configuration (allow credentials for cookies & production origins)
+const configuredOrigins = [
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+  process.env.CORS_ORIGIN,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
+].filter(Boolean);
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, postman) or any localhost port
-      if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
-        callback(null, true);
-      } else {
-        callback(null, true);
+      // Allow requests with no origin (like mobile apps, curl, postman)
+      if (!origin) {
+        return callback(null, true);
       }
+      // Check if origin is explicitly configured
+      if (configuredOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      // Allow all localhost/127.0.0.1 origins during development
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))
+      ) {
+        return callback(null, true);
+      }
+      // In production, reject unauthorized origins
+      callback(new Error(`CORS Error: Origin ${origin} not allowed.`));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-refresh-token']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-refresh-token', 'X-Requested-With'],
+    exposedHeaders: ['set-cookie']
   })
 );
 

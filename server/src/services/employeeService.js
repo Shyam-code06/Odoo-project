@@ -5,6 +5,7 @@ import {
   JobPositionModel,
   WorkingScheduleModel
 } from '../models/index.js';
+import { hashPassword } from '../utils/password.js';
 
 export class EmployeeService {
   /**
@@ -296,6 +297,52 @@ export class EmployeeService {
       working_schedule_id: working_schedule_id || null
     });
 
+    // 5. If portal user login is provided, create/link user account
+    if (data.password && data.password.trim().length >= 6) {
+      const password_hash = await hashPassword(data.password.trim());
+      let roleId = 4; // Default: Employee
+
+      if (data.role_id) {
+        if (!isNaN(Number(data.role_id))) {
+          roleId = Number(data.role_id);
+        } else {
+          const roleRecord = await db('roles')
+            .where('name', data.role_id)
+            .orWhere('code', data.role_id)
+            .first();
+          if (roleRecord) roleId = roleRecord.id;
+        }
+      } else if (data.role) {
+        const roleRecord = await db('roles')
+          .where('name', data.role)
+          .orWhere('code', data.role)
+          .first();
+        if (roleRecord) roleId = roleRecord.id;
+      }
+
+      const userEmail = email.trim().toLowerCase();
+      const existingUser = await db('users').where({ email: userEmail }).first();
+      if (!existingUser) {
+        await db('users').insert({
+          email: userEmail,
+          password_hash,
+          role_id: roleId,
+          employee_id: created.id,
+          is_active: 1,
+          created_at: db.fn.now(),
+          updated_at: db.fn.now()
+        });
+      } else {
+        await db('users').where({ id: existingUser.id }).update({
+          password_hash,
+          role_id: roleId,
+          employee_id: created.id,
+          is_active: 1,
+          updated_at: db.fn.now()
+        });
+      }
+    }
+
     return await this.getEmployeeById(created.id);
   }
 
@@ -348,11 +395,35 @@ export class EmployeeService {
 
     // Prepare payload (protect id and created_at)
     const payload = { ...updateData };
+    const newPassword = payload.password;
+    const newRoleId = payload.role_id;
     delete payload.id;
     delete payload.created_at;
+    delete payload.password;
+    delete payload.role_id;
+    delete payload.role;
     payload.updated_at = new Date();
 
     await EmployeeModel.updateById(id, payload);
+
+    // Update linked user password/role if provided
+    if (newPassword && newPassword.trim().length >= 6) {
+      const password_hash = await hashPassword(newPassword.trim());
+      const userUpdates = { password_hash, updated_at: db.fn.now() };
+      if (newRoleId) {
+        userUpdates.role_id = Number(newRoleId);
+      }
+      await db('users')
+        .where('employee_id', id)
+        .orWhere('email', existing.email)
+        .update(userUpdates);
+    } else if (newRoleId) {
+      await db('users')
+        .where('employee_id', id)
+        .orWhere('email', existing.email)
+        .update({ role_id: Number(newRoleId), updated_at: db.fn.now() });
+    }
+
     return await this.getEmployeeById(id);
   }
 

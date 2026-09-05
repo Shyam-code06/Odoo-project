@@ -80,8 +80,12 @@ export class ScheduleService {
     const totalPages = Math.ceil(total / limit) || 1;
 
     const schedules = await query
-      .select('*')
-      .orderBy('id', 'desc')
+      .select(
+        'working_schedules.*',
+        db.raw('(SELECT COUNT(id) FROM employees WHERE employees.working_schedule_id = working_schedules.id) as assigned_employee_count'),
+        db.raw('(SELECT COUNT(contracts.id) FROM contracts JOIN employees ON contracts.employee_id = employees.id WHERE employees.working_schedule_id = working_schedules.id AND contracts.status = \'active\') as active_contract_count')
+      )
+      .orderBy('working_schedules.id', 'desc')
       .limit(limit)
       .offset(offset);
 

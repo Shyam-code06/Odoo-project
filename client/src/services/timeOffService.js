@@ -10,6 +10,7 @@ import {
   timeOffRequestAdapter,
 } from '../adapters/timeOffAdapter';
 import { calculateRemainingBalance, calculateRequestDuration } from '../utils/timeOffCalculator';
+import { apiClient } from './apiClient';
 
 export const timeOffService = {
   // ==========================================
@@ -17,6 +18,20 @@ export const timeOffService = {
   // ==========================================
 
   getTimeOffTypes: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.get('/time-off/types', params);
+      if (apiRes?.success && apiRes?.data) {
+        const rawTypes = Array.isArray(apiRes.data)
+          ? apiRes.data
+          : apiRes.data.types || [];
+        return rawTypes.map(timeOffTypeAdapter.toUIModel);
+      }
+    } catch (err) {
+      console.warn('[timeOffService] Live getTimeOffTypes failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         let types = [...employeeService._getRawTimeOffTypes()].map(timeOffTypeAdapter.toUIModel);
@@ -582,6 +597,38 @@ export const timeOffService = {
   // ==========================================
 
   getTimeOffRequests: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.get('/time-off/requests', params);
+      if (apiRes?.success && apiRes?.data) {
+        const rawList = Array.isArray(apiRes.data)
+          ? apiRes.data
+          : apiRes.data.requests || [];
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawTypes = employeeService._getRawTimeOffTypes();
+        const rawAllocs = employeeService._getRawTimeOffAllocations();
+        const reqs = rawList.map((r) =>
+          timeOffRequestAdapter.toUIModel(r, rawEmployees, rawTypes, rawAllocs)
+        );
+
+        return {
+          data: reqs,
+          pagination: {
+            page: apiRes.pagination?.page || params.page || 1,
+            pageSize: apiRes.pagination?.limit || params.pageSize || 10,
+            totalItems: apiRes.pagination?.total || reqs.length,
+            totalPages:
+              apiRes.pagination?.totalPages ||
+              Math.ceil(reqs.length / (params.pageSize || 10)) ||
+              1,
+          },
+        };
+      }
+    } catch (err) {
+      console.warn('[timeOffService] Live getTimeOffRequests failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawEmployees = employeeService._getRawEmployees();

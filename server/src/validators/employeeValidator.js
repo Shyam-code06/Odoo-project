@@ -48,14 +48,47 @@ export const validateEmployeeCreate = (req, res, next) => {
     errors.push({ field: 'email', message: 'A valid email address is required' });
   }
 
-  if (!joining_date || typeof joining_date !== 'string' || !DATE_REGEX.test(joining_date.trim())) {
-    errors.push({ field: 'joining_date', message: 'A valid joining date is required (format: YYYY-MM-DD)' });
+  // Normalize and validate joining_date
+  let normalizedJoining = null;
+  if (joining_date && typeof joining_date === 'string') {
+    const trimmed = joining_date.trim();
+    if (DATE_REGEX.test(trimmed)) {
+      normalizedJoining = trimmed;
+    } else if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+      const [d, m, y] = trimmed.split('-');
+      normalizedJoining = `${y}-${m}-${d}`;
+    } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      const [d, m, y] = trimmed.split('/');
+      normalizedJoining = `${y}-${m}-${d}`;
+    }
+  }
+
+  if (!normalizedJoining) {
+    errors.push({ field: 'joining_date', message: 'A valid joining date is required (YYYY-MM-DD)' });
+  } else {
+    req.body.joining_date = normalizedJoining;
   }
 
   // Optional Fields
   if (date_of_birth !== undefined && date_of_birth !== null && date_of_birth !== '') {
-    if (typeof date_of_birth !== 'string' || !DATE_REGEX.test(date_of_birth.trim())) {
+    let normalizedDob = null;
+    if (typeof date_of_birth === 'string') {
+      const trimmed = date_of_birth.trim();
+      if (DATE_REGEX.test(trimmed)) {
+        normalizedDob = trimmed;
+      } else if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+        const [d, m, y] = trimmed.split('-');
+        normalizedDob = `${y}-${m}-${d}`;
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+        const [d, m, y] = trimmed.split('/');
+        normalizedDob = `${y}-${m}-${d}`;
+      }
+    }
+
+    if (!normalizedDob) {
       errors.push({ field: 'date_of_birth', message: 'Date of birth must be in YYYY-MM-DD format' });
+    } else {
+      req.body.date_of_birth = normalizedDob;
     }
   }
 
@@ -63,6 +96,8 @@ export const validateEmployeeCreate = (req, res, next) => {
     const num = Number(department_id);
     if (!Number.isInteger(num) || num <= 0) {
       errors.push({ field: 'department_id', message: 'Department ID must be a positive integer' });
+    } else {
+      req.body.department_id = num;
     }
   }
 
@@ -70,6 +105,8 @@ export const validateEmployeeCreate = (req, res, next) => {
     const num = Number(job_position_id);
     if (!Number.isInteger(num) || num <= 0) {
       errors.push({ field: 'job_position_id', message: 'Job position ID must be a positive integer' });
+    } else {
+      req.body.job_position_id = num;
     }
   }
 
@@ -77,13 +114,21 @@ export const validateEmployeeCreate = (req, res, next) => {
     const num = Number(manager_id);
     if (!Number.isInteger(num) || num <= 0) {
       errors.push({ field: 'manager_id', message: 'Manager ID must be a positive integer' });
+    } else {
+      req.body.manager_id = num;
     }
   }
 
   if (working_schedule_id !== undefined && working_schedule_id !== null && working_schedule_id !== '') {
-    const num = Number(working_schedule_id);
+    let num = Number(working_schedule_id);
+    if (isNaN(num) && typeof working_schedule_id === 'string') {
+      const match = working_schedule_id.match(/\d+/);
+      if (match) num = Number(match[0]);
+    }
     if (!Number.isInteger(num) || num <= 0) {
-      errors.push({ field: 'working_schedule_id', message: 'Working schedule ID must be a positive integer' });
+      req.body.working_schedule_id = 1; // Default to standard schedule
+    } else {
+      req.body.working_schedule_id = num;
     }
   }
 

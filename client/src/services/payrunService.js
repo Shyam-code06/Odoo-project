@@ -1,6 +1,7 @@
 import { employeeService } from './employeeService';
 import { payrunAdapter, payrunEmployeeAdapter, payslipAdapter } from '../adapters/payrunAdapter';
 import { payrollComputationService } from './payrollComputationService';
+import { apiClient } from './apiClient';
 
 /**
  * Payrun Master Service
@@ -13,6 +14,37 @@ export const payrunService = {
   // ==========================================
 
   getPayruns: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.get('/payruns', params);
+      if (apiRes?.success && apiRes?.data) {
+        const rawPayruns = Array.isArray(apiRes.data)
+          ? apiRes.data
+          : apiRes.data.payruns || [];
+        const rawStructs = employeeService._getRawSalaryStructures() || [];
+        const rawPEs = employeeService._getRawPayrunEmployees() || [];
+        const rawSlips = employeeService._getRawPayslips() || [];
+
+        const items = rawPayruns
+          .map((p) => payrunAdapter.toUIModel(p, rawStructs, rawPEs, rawSlips))
+          .filter(Boolean);
+
+        return {
+          data: items,
+          total: apiRes.pagination?.total || items.length,
+          page: apiRes.pagination?.page || params.page || 1,
+          pageSize: apiRes.pagination?.limit || params.pageSize || 10,
+          totalPages:
+            apiRes.pagination?.totalPages ||
+            Math.ceil(items.length / (params.pageSize || 10)) ||
+            1,
+        };
+      }
+    } catch (err) {
+      console.warn('[payrunService] Live getPayruns failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawPayruns = employeeService._getRawPayruns() || [];

@@ -43,7 +43,9 @@ export class DepartmentService {
         'departments.updated_at',
         db.raw("CONCAT(mgr.first_name, ' ', mgr.last_name) as manager_name"),
         'mgr.employee_code as manager_code',
-        'mgr.email as manager_email'
+        'mgr.email as manager_email',
+        db.raw('(SELECT COUNT(id) FROM employees WHERE employees.department_id = departments.id) as employee_count'),
+        db.raw('(SELECT COUNT(id) FROM job_positions WHERE job_positions.department_id = departments.id) as job_position_count')
       )
       .orderBy(sortBy, sortOrder)
       .limit(limit)
@@ -78,7 +80,9 @@ export class DepartmentService {
         'departments.updated_at',
         db.raw("CONCAT(mgr.first_name, ' ', mgr.last_name) as manager_name"),
         'mgr.employee_code as manager_code',
-        'mgr.email as manager_email'
+        'mgr.email as manager_email',
+        db.raw('(SELECT COUNT(id) FROM employees WHERE employees.department_id = departments.id) as employee_count'),
+        db.raw('(SELECT COUNT(id) FROM job_positions WHERE job_positions.department_id = departments.id) as job_position_count')
       )
       .first();
 

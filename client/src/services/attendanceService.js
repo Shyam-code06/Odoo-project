@@ -1,9 +1,57 @@
 import { employeeService } from './employeeService';
 import { attendanceAdapter } from '../adapters/attendanceAdapter';
 import { calculateWorkedMinutes, deriveAttendanceStatus } from '../utils/attendanceCalculator';
+import { apiClient } from './apiClient';
 
 export const attendanceService = {
   getAttendanceRecords: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.get('/attendance', params);
+      if (apiRes?.success && apiRes?.data) {
+        const rawAtt = Array.isArray(apiRes.data)
+          ? apiRes.data
+          : apiRes.data.attendance || [];
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawDepts = employeeService._getRawDepartments();
+        const rawPositions = employeeService._getRawJobPositions();
+        const rawSchedules = employeeService._getRawSchedules();
+
+        const list = rawAtt.map((a) =>
+          attendanceAdapter.toUIModel(a, rawEmployees, rawDepts, rawPositions, rawSchedules)
+        );
+
+        const totalRecords = list.length;
+        const presentCount = list.filter((a) => a.status === 'Present').length;
+        const lateCount = list.filter((a) => a.status === 'Late').length;
+        const absentCount = list.filter((a) => a.status === 'Absent').length;
+        const missingCheckOutCount = list.filter((a) => a.status === 'Incomplete').length;
+        const correctedCount = list.filter((a) => a.isCorrected).length;
+
+        return {
+          data: list,
+          total: apiRes.pagination?.total || totalRecords,
+          page: apiRes.pagination?.page || params.page || 1,
+          pageSize: apiRes.pagination?.limit || params.pageSize || 10,
+          totalPages:
+            apiRes.pagination?.totalPages ||
+            Math.ceil(totalRecords / (params.pageSize || 10)) ||
+            1,
+          summary: {
+            totalRecords,
+            presentCount,
+            lateCount,
+            absentCount,
+            missingCheckOutCount,
+            correctedCount,
+          },
+        };
+      }
+    } catch (err) {
+      console.warn('[attendanceService] Live getAttendanceRecords failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawAtt = employeeService._getRawAttendance();
@@ -16,7 +64,6 @@ export const attendanceService = {
           attendanceAdapter.toUIModel(a, rawEmployees, rawDepts, rawPositions, rawSchedules)
         );
 
-        // Employee Self-Service Scope Filter
         if (params.restrictEmployeeId) {
           list = list.filter((a) => a.employeeId === params.restrictEmployeeId);
         } else if (params.employeeId || params.employee_id) {
@@ -24,7 +71,6 @@ export const attendanceService = {
           list = list.filter((a) => a.employeeId === empId);
         }
 
-        // Search filter (Employee name, code)
         if (params.search && params.search.trim()) {
           const q = params.search.trim().toLowerCase();
           list = list.filter(
@@ -34,26 +80,22 @@ export const attendanceService = {
           );
         }
 
-        // Department filter
         if (params.departmentId || params.department_id) {
           const deptId = params.departmentId || params.department_id;
           list = list.filter((a) => a.employee && a.employee.departmentId === deptId);
         }
 
-        // Working Schedule filter
         if (params.workingScheduleId || params.working_schedule_id) {
           const schedId = params.workingScheduleId || params.working_schedule_id;
           list = list.filter((a) => a.employee && a.employee.workingScheduleId === schedId);
         }
 
-        // Status filter
         if (params.status) {
           list = list.filter(
             (a) => a.status.toLowerCase() === params.status.toLowerCase()
           );
         }
 
-        // Date filter
         if (params.date) {
           list = list.filter((a) => a.attendanceDate === params.date);
         } else {
@@ -65,34 +107,25 @@ export const attendanceService = {
           }
         }
 
-        // Summary metrics calculation
         const totalRecords = list.length;
         const presentCount = list.filter((a) => a.status === 'Present').length;
         const lateCount = list.filter((a) => a.status === 'Late').length;
         const absentCount = list.filter((a) => a.status === 'Absent').length;
-        const missingCheckOutCount = list.filter((a) => a.exceptions && a.exceptions.isMissingCheckOut).length;
+        const missingCheckOutCount = list.filter((a) => a.status === 'Incomplete').length;
         const correctedCount = list.filter((a) => a.isCorrected).length;
 
-        // Sorting
         if (params.sortBy) {
           const key = params.sortBy;
           const dir = params.sortDirection === 'desc' ? -1 : 1;
           list.sort((a, b) => {
-            let valA = a[key];
-            let valB = b[key];
-
-            if (key === 'employeeName') {
-              valA = a.employee ? a.employee.name : '';
-              valB = b.employee ? b.employee.name : '';
-            }
-
+            let valA = a[key] || '';
+            let valB = b[key] || '';
             if (valA < valB) return -1 * dir;
             if (valA > valB) return 1 * dir;
             return 0;
           });
         }
 
-        // Pagination
         const total = list.length;
         const page = params.page || 1;
         const pageSize = params.pageSize || 10;
@@ -119,6 +152,21 @@ export const attendanceService = {
   },
 
   getAttendanceById: async (id) => {
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.get(`/attendance/${id}`);
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawDepts = employeeService._getRawDepartments();
+        const rawPositions = employeeService._getRawJobPositions();
+        const rawSchedules = employeeService._getRawSchedules();
+        return attendanceAdapter.toUIModel(apiRes.data, rawEmployees, rawDepts, rawPositions, rawSchedules);
+      }
+    } catch (err) {
+      console.warn(`[attendanceService] Live getAttendanceById(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawAtt = employeeService._getRawAttendance();
@@ -148,10 +196,29 @@ export const attendanceService = {
   },
 
   createAttendance: async (formData) => {
+    const apiData = attendanceAdapter.toAPIModel(formData);
+
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.post('/attendance', apiData);
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawDepts = employeeService._getRawDepartments();
+        const rawPositions = employeeService._getRawJobPositions();
+        const rawSchedules = employeeService._getRawSchedules();
+        return {
+          success: true,
+          record: attendanceAdapter.toUIModel(apiRes.data, rawEmployees, rawDepts, rawPositions, rawSchedules),
+        };
+      }
+    } catch (err) {
+      console.warn('[attendanceService] Live createAttendance failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawAtt = employeeService._getRawAttendance();
-        const apiData = attendanceAdapter.toAPIModel(formData);
 
         if (!apiData.employee_id) {
           reject(new Error('Employee selection is required.'));
@@ -163,13 +230,11 @@ export const attendanceService = {
           return;
         }
 
-        // Check duplicate
         if (attendanceService.checkDuplicateAttendance(apiData.employee_id, apiData.attendance_date)) {
           reject(new Error(`An attendance record already exists for this employee on ${apiData.attendance_date}.`));
           return;
         }
 
-        // Validate Check-out after Check-in
         if (apiData.check_in && apiData.check_out) {
           const start = new Date(apiData.check_in).getTime();
           const end = new Date(apiData.check_out).getTime();
@@ -210,6 +275,30 @@ export const attendanceService = {
   },
 
   correctAttendance: async (id, formData, correctedByUser = 'HR Manager') => {
+    const apiData = attendanceAdapter.toAPIModel(formData);
+
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.put(`/attendance/${id}`, {
+        ...apiData,
+        correction_reason: formData.correctionReason,
+        corrected_by: correctedByUser,
+      });
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawDepts = employeeService._getRawDepartments();
+        const rawPositions = employeeService._getRawJobPositions();
+        const rawSchedules = employeeService._getRawSchedules();
+        return {
+          success: true,
+          record: attendanceAdapter.toUIModel(apiRes.data, rawEmployees, rawDepts, rawPositions, rawSchedules),
+        };
+      }
+    } catch (err) {
+      console.warn(`[attendanceService] Live correctAttendance(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawAtt = employeeService._getRawAttendance();
@@ -223,8 +312,6 @@ export const attendanceService = {
           reject(new Error('Correction reason is required for manual edits.'));
           return;
         }
-
-        const apiData = attendanceAdapter.toAPIModel(formData);
 
         if (apiData.check_in && apiData.check_out) {
           const start = new Date(apiData.check_in).getTime();
@@ -263,6 +350,17 @@ export const attendanceService = {
   },
 
   deleteAttendance: async (id) => {
+    // 1. Attempt live HTTP call
+    try {
+      const apiRes = await apiClient.delete(`/attendance/${id}`);
+      if (apiRes?.success) {
+        return { success: true };
+      }
+    } catch (err) {
+      console.warn(`[attendanceService] Live deleteAttendance(${id}) failed, using local store:`, err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawAtt = employeeService._getRawAttendance();
@@ -273,3 +371,5 @@ export const attendanceService = {
     });
   },
 };
+
+export default attendanceService;

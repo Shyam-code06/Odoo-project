@@ -56,7 +56,7 @@ export const MOCK_USERS = {
   admin: {
     id: 'usr_adm_005',
     name: 'Admin User',
-    email: 'admin@hrms.demo',
+    email: 'admin@gmail.com',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
     jobTitle: 'Global System Administrator',
     department: 'Executive Office',
@@ -68,7 +68,7 @@ export const MOCK_USERS = {
   },
 };
 
-export const DEFAULT_DEMO_PASSWORD = 'Password123';
+export const DEFAULT_DEMO_PASSWORD = 'admin123';
 
 export const MOCK_NOTIFICATIONS_BY_ROLE = {
   [ROLES.EMPLOYEE]: [

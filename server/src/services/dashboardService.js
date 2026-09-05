@@ -43,6 +43,12 @@ export class DashboardService {
       )
       .first();
 
+    // 1b. Total System Users, Departments, Salary Structures & Rules
+    const totalUsers = await db('users').count('id as count').first();
+    const totalDepartments = await db('departments').count('id as count').first();
+    const totalStructures = await db('salary_structures').count('id as count').first();
+    const totalRules = await db('salary_rules').count('id as count').first();
+
     // 2. Department Headcount Distribution
     const deptDistribution = await db('employees')
       .leftJoin('departments', 'employees.department_id', 'departments.id')
@@ -176,11 +182,197 @@ export class DashboardService {
       )
       .orderBy('total_gross', 'desc');
 
-    // 8. Operational Alerts
+    // 8. Weekly Attendance Trend (Mon-Fri)
+    const now = new Date();
+    const currentDay = now.getDay();
+    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+
+    const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const weeklyTrend = [];
+
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayName = weekDays[i];
+
+      const dayStats = await db('attendance')
+        .where('attendance_date', dateStr)
+        .select(
+          db.raw("SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present"),
+          db.raw("SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent"),
+          db.raw("SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late")
+        )
+        .first();
+
+      weeklyTrend.push({
+        day: dayName,
+        date: dateStr,
+        present: parseInt(dayStats?.present, 10) || 0,
+        absent: parseInt(dayStats?.absent, 10) || 0,
+        late: parseInt(dayStats?.late, 10) || 0,
+      });
+    }
+
+    // 9. Real Recent Activities from Database
+    const recentEmployees = await db('employees')
+      .select('id', 'first_name', 'last_name', 'created_at')
+      .orderBy('created_at', 'desc')
+      .limit(3);
+
+    const recentContracts = await db('contracts')
+      .leftJoin('employees', 'contracts.employee_id', 'employees.id')
+      .select('contracts.id', 'contracts.contract_number', 'contracts.created_at', 'employees.first_name', 'employees.last_name')
+      .orderBy('contracts.created_at', 'desc')
+      .limit(3);
+
+    const recentPayruns = await db('payruns')
+      .select('id', 'name', 'status', 'created_at', 'updated_at')
+      .orderBy('updated_at', 'desc')
+      .limit(3);
+
+    const recentLeaves = await db('time_off_requests')
+      .leftJoin('employees', 'time_off_requests.employee_id', 'employees.id')
+      .leftJoin('time_off_types', 'time_off_requests.time_off_type_id', 'time_off_types.id')
+      .select(
+        'time_off_requests.id',
+        'time_off_requests.created_at',
+        'time_off_requests.status',
+        'time_off_requests.duration',
+        'employees.first_name',
+        'employees.last_name',
+        'time_off_types.name as leave_type'
+      )
+      .orderBy('time_off_requests.created_at', 'desc')
+      .limit(3);
+
+    const activities = [];
+
+    for (const e of recentEmployees) {
+      activities.push({
+        id: `act_emp_${e.id}`,
+        actorName: 'HR Department',
+        action: 'onboarded employee',
+        target: `${e.first_name} ${e.last_name}`,
+        timestamp: e.created_at || new Date().toISOString(),
+        iconName: 'UserPlus'
+      });
+    }
+
+    for (const c of recentContracts) {
+      activities.push({
+        id: `act_con_${c.id}`,
+        actorName: 'System',
+        action: 'activated contract for',
+        target: `${c.first_name} ${c.last_name} (${c.contract_number})`,
+        timestamp: c.created_at || new Date().toISOString(),
+        iconName: 'CheckCircle2'
+      });
+    }
+
+    for (const p of recentPayruns) {
+      activities.push({
+        id: `act_pr_${p.id}`,
+        actorName: 'Payroll Team',
+        action: `updated payrun status to ${p.status}`,
+        target: p.name,
+        timestamp: p.updated_at || p.created_at || new Date().toISOString(),
+        iconName: 'Receipt'
+      });
+    }
+
+    for (const l of recentLeaves) {
+      activities.push({
+        id: `act_lv_${l.id}`,
+        actorName: `${l.first_name} ${l.last_name}`,
+        action: `requested ${l.duration}d time-off for`,
+        target: l.leave_type || 'Leave',
+        timestamp: l.created_at || new Date().toISOString(),
+        iconName: 'Calendar'
+      });
+    }
+
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const recentActivities = activities.slice(0, 5);
+
+    // 10. Real Upcoming Events from Database
+    const upcomingEvents = [];
+    const currentMonthName = new Date().toLocaleString('en-US', { month: 'short' });
+    const lastDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+
+    upcomingEvents.push({
+      id: 'evt_payroll_lock',
+      title: `${currentMonthName} Payroll Lock & Review`,
+      category: 'Payroll Deadline',
+      date: `${currentMonthName} ${lastDayOfMonth}`,
+      iconName: 'Receipt',
+      color: 'text-rose-600 bg-rose-50'
+    });
+
+    const expiringIn30Days = await db('contracts')
+      .leftJoin('employees', 'contracts.employee_id', 'employees.id')
+      .where('contracts.status', 'active')
+      .whereNotNull('contracts.end_date')
+      .where('contracts.end_date', '>=', db.fn.now())
+      .where('contracts.end_date', '<=', db.raw('DATE_ADD(CURRENT_DATE, INTERVAL 30 DAY)'))
+      .select('contracts.id', 'contracts.end_date', 'employees.first_name', 'employees.last_name')
+      .limit(3);
+
+    for (const ec of expiringIn30Days) {
+      const expDate = new Date(ec.end_date);
+      const formattedDate = expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      upcomingEvents.push({
+        id: `evt_con_${ec.id}`,
+        title: `${ec.first_name} ${ec.last_name} Contract Expiry`,
+        category: 'Contract Renewal',
+        date: formattedDate,
+        iconName: 'Award',
+        color: 'text-amber-600 bg-amber-50'
+      });
+    }
+
+    // 11. Real Pending Time-Off Requests for Dashboard Widget
+    const pendingTimeOffRequests = await db('time_off_requests')
+      .leftJoin('employees', 'time_off_requests.employee_id', 'employees.id')
+      .leftJoin('time_off_types', 'time_off_requests.time_off_type_id', 'time_off_types.id')
+      .where('time_off_requests.status', 'pending')
+      .select(
+        'time_off_requests.id',
+        'time_off_requests.employee_id',
+        'employees.first_name',
+        'employees.last_name',
+        'time_off_types.name as leave_type_name',
+        'time_off_requests.start_date',
+        'time_off_requests.end_date',
+        'time_off_requests.duration',
+        'time_off_requests.status',
+        'time_off_requests.created_at'
+      )
+      .orderBy('time_off_requests.created_at', 'desc')
+      .limit(5);
+
+    const formattedPendingLeaves = pendingTimeOffRequests.map((r) => ({
+      id: r.id,
+      employeeName: `${r.first_name || ''} ${r.last_name || ''}`.trim() || 'Employee',
+      avatar: '',
+      leaveType: r.leave_type_name || 'Leave',
+      dates: `${r.start_date} - ${r.end_date}`,
+      days: Number(r.duration || 1),
+      status: 'Pending',
+      createdAt: r.created_at
+    }));
+
+    // 12. Operational Alerts
     const alerts = await this.getOperationalAlerts();
 
     return {
       period: { date_from: dateFrom, date_to: dateTo },
+      total_users: parseInt(totalUsers?.count, 10) || 0,
+      total_departments: parseInt(totalDepartments?.count, 10) || 0,
+      total_salary_structures: parseInt(totalStructures?.count, 10) || 0,
+      total_salary_rules: parseInt(totalRules?.count, 10) || 0,
       headcount: {
         total: parseInt(headcount?.total_employees, 10) || 0,
         active: parseInt(headcount?.active_employees, 10) || 0,
@@ -201,6 +393,7 @@ export class DashboardService {
         total_worked_hours: Number((totalMinutes / 60).toFixed(1)),
         on_time_rate_percent: onTimeRate
       },
+      weekly_trend: weeklyTrend,
       time_off_summary: {
         pending_requests: parseInt(pendingLeaves?.count, 10) || 0,
         approved_requests_period: parseInt(approvedLeaves?.approved_count, 10) || 0,
@@ -212,6 +405,7 @@ export class DashboardService {
           requests_count: parseInt(l.request_count, 10) || 0
         }))
       },
+      recent_time_off_requests: formattedPendingLeaves,
       payroll_summary: {
         recent_payrun: recentPayrun
           ? {
@@ -242,7 +436,9 @@ export class DashboardService {
         gross: Number(d.total_gross || 0),
         net: Number(d.total_net || 0)
       })),
-      operational_alerts: alerts
+      operational_alerts: alerts,
+      recent_activities: recentActivities,
+      upcoming_events: upcomingEvents
     };
   }
 

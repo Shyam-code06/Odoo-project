@@ -18,10 +18,18 @@ export const jobPositionAdapter = {
           name: deptObj.name,
           code: deptObj.code,
         };
+      } else if (pos.department_name) {
+        department = {
+          id: departmentId,
+          name: pos.department_name,
+          code: pos.department_code || '',
+        };
       }
     }
 
-    const employeeCount = employees.filter((e) => e.job_position_id === pos.id).length;
+    const employeeCount = pos.employee_count !== undefined
+      ? parseInt(pos.employee_count, 10) || 0
+      : employees.filter((e) => e.job_position_id === pos.id).length;
 
     return {
       id: pos.id,

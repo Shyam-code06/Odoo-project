@@ -9,10 +9,13 @@ export const workingScheduleAdapter = {
       : DEFAULT_WEEKDAYS;
 
     const summary = calculateWeeklySummary(days);
-    const employeeCount = employees.filter((e) => e.working_schedule_id === schedule.id).length;
+    const employeeCount = schedule.assigned_employee_count !== undefined
+      ? parseInt(schedule.assigned_employee_count, 10) || 0
+      : employees.filter((e) => e.working_schedule_id === schedule.id).length;
 
-    // Derived contract count for future contract integration
-    const contractCount = Math.max(0, Math.floor(employeeCount * 0.85));
+    const contractCount = schedule.active_contract_count !== undefined
+      ? parseInt(schedule.active_contract_count, 10) || 0
+      : 0;
 
     return {
       id: schedule.id,

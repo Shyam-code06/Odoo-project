@@ -18,14 +18,26 @@ export const departmentAdapter = {
           name: `${mgrEmp.first_name} ${mgrEmp.last_name}`,
           code: mgrEmp.employee_code,
           email: mgrEmp.email,
-          avatar: mgrEmp.avatar,
+          avatar: mgrEmp.avatar || '',
+        };
+      } else if (dept.manager_name) {
+        manager = {
+          id: managerId,
+          name: dept.manager_name,
+          code: dept.manager_code || '',
+          email: dept.manager_email || '',
+          avatar: '',
         };
       }
     }
 
-    // Calculate derived counts
-    const employeeCount = employees.filter((e) => e.department_id === dept.id).length;
-    const jobPositionCount = jobPositions.filter((p) => p.department_id === dept.id).length;
+    // Calculate derived counts from real DB if provided, else filter
+    const employeeCount = dept.employee_count !== undefined
+      ? parseInt(dept.employee_count, 10) || 0
+      : employees.filter((e) => e.department_id === dept.id).length;
+    const jobPositionCount = dept.job_position_count !== undefined
+      ? parseInt(dept.job_position_count, 10) || 0
+      : jobPositions.filter((p) => p.department_id === dept.id).length;
 
     return {
       id: dept.id,

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import {
   ROLE_PERMISSIONS,
+  normalizeRole,
   hasPermission as checkHasPermission,
 } from '../config/permissions';
 
@@ -21,8 +22,10 @@ export const AuthProvider = ({ children }) => {
       .then((session) => {
         if (isMounted) {
           if (session && session.user) {
+            const canonicalRole = normalizeRole(session.user.role || session.user.role_name);
+            session.user.role = canonicalRole;
             setUser(session.user);
-            setCurrentRole(session.user.role);
+            setCurrentRole(canonicalRole);
             setIsAuthenticated(true);
           } else {
             setUser(null);
@@ -48,9 +51,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setIsLoading(true);
     const res = await authService.login(email, password);
-    if (res.success) {
+    if (res.success && res.user) {
+      const canonicalRole = normalizeRole(res.user.role || res.user.role_name);
+      res.user.role = canonicalRole;
       setUser(res.user);
-      setCurrentRole(res.user.role);
+      setCurrentRole(canonicalRole);
       setIsAuthenticated(true);
     }
     setIsLoading(false);

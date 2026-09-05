@@ -14,6 +14,7 @@ import {
   validateStructureDependencies,
   getPayrollCalculationDefinition,
 } from '../utils/salaryCalculationEngine';
+import { apiClient } from './apiClient';
 
 export const salaryService = {
   // ==========================================
@@ -21,6 +22,39 @@ export const salaryService = {
   // ==========================================
 
   getSalaryStructures: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.get('/salary-structures', params);
+      if (apiRes?.success && apiRes?.data) {
+        const rawRules = employeeService._getRawSalaryRules() || [];
+        const rawStructs = Array.isArray(apiRes.data)
+          ? apiRes.data
+          : apiRes.data.structures || [];
+        const structs = rawStructs.map((s) =>
+          salaryStructureAdapter.toUIModel(s, rawRules)
+        );
+
+        return {
+          data: structs,
+          metrics: {
+            total: structs.length,
+            active: structs.filter((s) => s.isActive).length,
+            inactive: structs.filter((s) => !s.isActive).length,
+            totalRules: rawRules.length,
+          },
+          pagination: {
+            page: 1,
+            pageSize: structs.length,
+            totalItems: structs.length,
+            totalPages: 1,
+          },
+        };
+      }
+    } catch (err) {
+      console.warn('[salaryService] Live getSalaryStructures failed, using local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawRules = employeeService._getRawSalaryRules() || [];
