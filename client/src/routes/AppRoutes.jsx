@@ -36,6 +36,18 @@ import { AttendanceListPage } from '../pages/attendance/AttendanceListPage';
 import { AttendanceDetailsPage } from '../pages/attendance/AttendanceDetailsPage';
 import { AttendanceFormPage } from '../pages/attendance/AttendanceFormPage';
 
+import { TimeOffTypesPage } from '../pages/timeOff/types/TimeOffTypesPage';
+import { TimeOffTypeDetailsPage } from '../pages/timeOff/types/TimeOffTypeDetailsPage';
+import { TimeOffTypeFormPage } from '../pages/timeOff/types/TimeOffTypeFormPage';
+
+import { AllocationsPage } from '../pages/timeOff/allocations/AllocationsPage';
+import { AllocationDetailsPage } from '../pages/timeOff/allocations/AllocationDetailsPage';
+import { AllocationFormPage } from '../pages/timeOff/allocations/AllocationFormPage';
+
+import { TimeOffRequestsPage } from '../pages/timeOff/requests/TimeOffRequestsPage';
+import { TimeOffRequestDetailsPage } from '../pages/timeOff/requests/TimeOffRequestDetailsPage';
+import { TimeOffRequestFormPage } from '../pages/timeOff/requests/TimeOffRequestFormPage';
+
 import { PERMISSIONS, ROLES } from '../config/permissions';
 
 export const AppRoutes = () => {
@@ -93,7 +105,7 @@ export const AppRoutes = () => {
             path="/my-time-off"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.MY_TIME_OFF_VIEW}>
-                <PlaceholderPage title="My Leave & Time Off" description="View leave balances and submit vacation requests." part="08" iconName="Palmtree" />
+                <TimeOffRequestsPage isSelfService={true} />
               </RoleRoute>
             }
           />
@@ -323,11 +335,105 @@ export const AppRoutes = () => {
             }
           />
 
-          <Route path="/time-off/requests" element={<RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}><PlaceholderPage title="Time Off Requests" part="08" iconName="Palmtree" /></RoleRoute>} />
-          <Route path="/time-off/requests/new" element={<RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_CREATE}><PlaceholderPage title="New Time Off Request" part="08" iconName="Plus" /></RoleRoute>} />
-          <Route path="/time-off/requests/:id" element={<RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}><PlaceholderPage title="Time Off Request Detail" part="08" iconName="Palmtree" /></RoleRoute>} />
-          <Route path="/time-off/allocations" element={<RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}><PlaceholderPage title="Leave Allocations" part="08" iconName="CalendarDays" /></RoleRoute>} />
-          <Route path="/time-off/types" element={<RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}><PlaceholderPage title="Leave Types" part="08" iconName="Sliders" /></RoleRoute>} />
+          {/* Time Off Management Routes (Part 08) */}
+          <Route
+            path="/time-off/types"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}>
+                <TimeOffTypesPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/time-off/types/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_TYPE_CREATE}>
+                <TimeOffTypeFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/time-off/types/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}>
+                <TimeOffTypeDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/time-off/types/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_TYPE_EDIT}>
+                <TimeOffTypeFormPage />
+              </RoleRoute>
+            }
+          />
+
+          <Route
+            path="/time-off/allocations"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}>
+                <AllocationsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/time-off/allocations/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_ALLOCATION_CREATE}>
+                <AllocationFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/time-off/allocations/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}>
+                <AllocationDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/time-off/allocations/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_ALLOCATION_EDIT}>
+                <AllocationFormPage />
+              </RoleRoute>
+            }
+          />
+
+          <Route
+            path="/time-off/requests"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}>
+                <TimeOffRequestsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/time-off/requests/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_CREATE}>
+                <TimeOffRequestFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/time-off/requests/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_VIEW}>
+                <TimeOffRequestDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/time-off/requests/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.TIME_OFF_REQUEST_EDIT}>
+                <TimeOffRequestFormPage />
+              </RoleRoute>
+            }
+          />
 
           {/* Payroll Routes (Parts 09, 10, 11) */}
           <Route path="/payroll" element={<RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}><PlaceholderPage title="Payroll Overview" part="09" iconName="CircleDollarSign" /></RoleRoute>} />

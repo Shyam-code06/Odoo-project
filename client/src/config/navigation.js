@@ -107,6 +107,20 @@ export const NAVIGATION_CATEGORIES = [
         iconName: 'Palmtree',
         permission: PERMISSIONS.TIME_OFF_VIEW,
       },
+      {
+        id: 'time-off-allocations',
+        label: 'Leave Allocations',
+        path: '/time-off/allocations',
+        iconName: 'PieChart',
+        permission: PERMISSIONS.TIME_OFF_VIEW,
+      },
+      {
+        id: 'time-off-types',
+        label: 'Time Off Types',
+        path: '/time-off/types',
+        iconName: 'CalendarDays',
+        permission: PERMISSIONS.TIME_OFF_VIEW,
+      },
     ],
   },
   {
