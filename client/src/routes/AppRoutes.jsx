@@ -16,6 +16,10 @@ import { UnauthorizedPage } from '../pages/error/UnauthorizedPage';
 import { NotFoundPage } from '../pages/error/NotFoundPage';
 import { PlaceholderPage } from '../pages/placeholder/PlaceholderPage';
 
+import { EmployeeListPage } from '../pages/employees/EmployeeListPage';
+import { EmployeeDetailsPage } from '../pages/employees/EmployeeDetailsPage';
+import { EmployeeFormPage } from '../pages/employees/EmployeeFormPage';
+
 import { PERMISSIONS, ROLES } from '../config/permissions';
 
 export const AppRoutes = () => {
@@ -86,12 +90,12 @@ export const AppRoutes = () => {
             }
           />
 
-          {/* Employees Routes (Part 04) */}
+          {/* Employee Master Management Routes (Part 04) */}
           <Route
             path="/employees"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.EMPLOYEES_VIEW}>
-                <PlaceholderPage title="Employees Directory" description="Manage complete employee directory, profiles and details." part="04" iconName="Users" />
+                <EmployeeListPage />
               </RoleRoute>
             }
           />
@@ -99,7 +103,7 @@ export const AppRoutes = () => {
             path="/employees/kanban"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.EMPLOYEES_VIEW}>
-                <PlaceholderPage title="Employees Kanban Board" part="04" iconName="Kanban" />
+                <EmployeeListPage />
               </RoleRoute>
             }
           />
@@ -107,7 +111,7 @@ export const AppRoutes = () => {
             path="/employees/new"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.EMPLOYEES_CREATE}>
-                <PlaceholderPage title="Add New Employee" part="04" iconName="UserPlus" />
+                <EmployeeFormPage />
               </RoleRoute>
             }
           />
@@ -115,7 +119,7 @@ export const AppRoutes = () => {
             path="/employees/:id"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.EMPLOYEES_VIEW}>
-                <PlaceholderPage title="Employee Profile Detail" part="04" iconName="User" />
+                <EmployeeDetailsPage />
               </RoleRoute>
             }
           />
@@ -123,7 +127,7 @@ export const AppRoutes = () => {
             path="/employees/:id/edit"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.EMPLOYEES_EDIT}>
-                <PlaceholderPage title="Edit Employee Profile" part="04" iconName="UserCheck" />
+                <EmployeeFormPage />
               </RoleRoute>
             }
           />
