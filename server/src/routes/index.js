@@ -10,6 +10,8 @@ import scheduleRoutes from './scheduleRoutes.js';
 import contractRoutes from './contractRoutes.js';
 import attendanceRoutes from './attendanceRoutes.js';
 import timeOffRoutes from './timeOffRoutes.js';
+import salaryStructureRoutes from './salaryStructureRoutes.js';
+import salaryRuleRoutes from './salaryRuleRoutes.js';
 
 const router = Router();
 
@@ -37,5 +39,9 @@ router.use('/attendance', attendanceRoutes);
 
 // Phase 7: Time Off / Leave Management routes
 router.use('/time-off', timeOffRoutes);
+
+// Phase 8: Salary Configuration routes
+router.use('/salary-structures', salaryStructureRoutes);
+router.use('/salary-rules', salaryRuleRoutes);
 
 export default router;

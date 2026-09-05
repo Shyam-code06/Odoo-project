@@ -43,7 +43,6 @@ export class AttendanceModel extends BaseModel {
         'departments.name as department_name',
         'corrector.email as corrector_email'
       );
-
     if (filter && Object.keys(filter).length > 0) {
       q = q.where(filter);
     }
