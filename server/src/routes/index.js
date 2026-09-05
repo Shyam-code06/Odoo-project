@@ -9,6 +9,7 @@ import employeeRoutes from './employeeRoutes.js';
 import scheduleRoutes from './scheduleRoutes.js';
 import contractRoutes from './contractRoutes.js';
 import attendanceRoutes from './attendanceRoutes.js';
+import timeOffRoutes from './timeOffRoutes.js';
 
 const router = Router();
 
@@ -33,5 +34,8 @@ router.use('/contracts', contractRoutes);
 
 // Phase 6: Attendance routes
 router.use('/attendance', attendanceRoutes);
+
+// Phase 7: Time Off / Leave Management routes
+router.use('/time-off', timeOffRoutes);
 
 export default router;
