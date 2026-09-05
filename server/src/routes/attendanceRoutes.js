@@ -39,32 +39,32 @@ router.get(
 // 3. Single Record View (Ownership checked in controller)
 router.get('/:id', getAttendanceById);
 
-// 4. Manual Creation & Corrections (Restricted to HR / Admin)
+// 4. Manual Creation & Corrections (Restricted strictly to Admin)
 router.post(
   '/',
-  authorize('Admin', 'HR Manager', 'HR Payroll Manager'),
+  authorize('Admin'),
   validateManualAttendanceCreate,
   createManualAttendance
 );
 
 router.put(
   '/:id/correct',
-  authorize('Admin', 'HR Manager', 'HR Payroll Manager'),
+  authorize('Admin'),
   validateAttendanceCorrection,
   correctAttendance
 );
 
 router.patch(
   '/:id/correct',
-  authorize('Admin', 'HR Manager', 'HR Payroll Manager'),
+  authorize('Admin'),
   validateAttendanceCorrection,
   correctAttendance
 );
 
-// 5. Delete Attendance
+// 5. Delete Attendance (Restricted strictly to Admin)
 router.delete(
   '/:id',
-  authorize('Admin', 'HR Manager'),
+  authorize('Admin'),
   deleteAttendance
 );
 

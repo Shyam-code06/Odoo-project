@@ -17,13 +17,25 @@ export const Table = ({
   onSelectRow,
   onSelectAll,
   className = '',
+  children,
+  ...props
 }) => {
+  if (children) {
+    return (
+      <div className={`w-full overflow-x-auto rounded-lg border border-slate-200 bg-white ${className}`}>
+        <table className="w-full text-left text-sm border-collapse" {...props}>
+          {children}
+        </table>
+      </div>
+    );
+  }
+
   const isAllSelected =
     data.length > 0 && selectedRows.length === data.length;
 
   return (
     <div className={`w-full overflow-x-auto rounded-lg border border-slate-200 bg-white ${className}`}>
-      <table className="w-full text-left text-sm border-collapse">
+      <table className="w-full text-left text-sm border-collapse" {...props}>
         <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600 border-b border-slate-200">
           <tr>
             {onSelectAll && (
@@ -111,3 +123,36 @@ export const Table = ({
     </div>
   );
 };
+
+Table.Header = ({ children, className = '', ...props }) => (
+  <thead className={`bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600 border-b border-slate-200 ${className}`} {...props}>
+    {children}
+  </thead>
+);
+
+Table.Body = ({ children, className = '', ...props }) => (
+  <tbody className={`divide-y divide-slate-100 text-slate-700 ${className}`} {...props}>
+    {children}
+  </tbody>
+);
+
+Table.Row = ({ children, className = '', ...props }) => (
+  <tr className={`transition-colors ${className}`} {...props}>
+    {children}
+  </tr>
+);
+
+Table.HeaderCell = ({ children, className = '', ...props }) => (
+  <th className={`p-3 text-left font-semibold select-none ${className}`} {...props}>
+    {children}
+  </th>
+);
+
+Table.Cell = ({ children, className = '', ...props }) => (
+  <td className={`p-3 ${className}`} {...props}>
+    {children}
+  </td>
+);
+
+export default Table;
+

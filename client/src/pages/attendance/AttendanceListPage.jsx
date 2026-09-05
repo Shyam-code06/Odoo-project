@@ -30,16 +30,16 @@ import { AttendanceExceptionBadge } from './components/AttendanceExceptionBadge'
 import { useAttendance } from '../../hooks/useAttendance';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
-import { PERMISSIONS } from '../../config/permissions';
+import { PERMISSIONS, ROLES, normalizeRole } from '../../config/permissions';
 import { attendanceService } from '../../services/attendanceService';
 import { employeeService } from '../../services/employeeService';
 import { departmentService } from '../../services/departmentService';
 import { workingScheduleService } from '../../services/workingScheduleService';
 
-export const AttendanceListPage = () => {
+export const AttendanceListPage = ({ isSelfService = false }) => {
   const navigate = useNavigate();
   const toast = useToast();
-  const { hasPermission } = useAuth();
+  const { currentRole, hasPermission } = useAuth();
   const [deletingRecord, setDeletingRecord] = useState(null);
 
   const [employeeOptions, setEmployeeOptions] = useState([]);
@@ -58,22 +58,46 @@ export const AttendanceListPage = () => {
     updateFilters,
     clearFilters,
     refresh,
-  } = useAttendance();
+  } = useAttendance({ isSelfService });
 
-  const canCreate = hasPermission(PERMISSIONS.ATTENDANCE_CREATE);
-  const canEdit = hasPermission(PERMISSIONS.ATTENDANCE_EDIT);
-  const canDelete = hasPermission(PERMISSIONS.EMPLOYEES_DELETE); // Admin/Manager delete permission
+  const isAdmin = normalizeRole(currentRole) === ROLES.ADMIN;
+
+  // Add Attendance is strictly restricted to Admin only, and never allowed on personal My Attendance
+  const canCreate = isAdmin && !isSelfService && !isEmployeeRole;
+  const canEdit = isAdmin;
+  const canDelete = isAdmin;
 
   useEffect(() => {
-    employeeService.getManagerOptions().then((opts) => {
-      setEmployeeOptions(opts.map((e) => ({ value: e.id, label: e.name })));
-    });
-    departmentService.getDepartmentOptions().then((opts) => {
-      setDepartmentOptions(opts.map((d) => ({ value: d.id, label: d.name })));
-    });
-    workingScheduleService.getScheduleOptions().then((opts) => {
-      setScheduleOptions(opts.map((s) => ({ value: s.id, label: s.name })));
-    });
+    if (typeof employeeService?.getManagerOptions === 'function') {
+      employeeService
+        .getManagerOptions()
+        .then((opts) => {
+          if (Array.isArray(opts)) {
+            setEmployeeOptions(opts.map((e) => ({ value: e.id, label: e.name })));
+          }
+        })
+        .catch(() => {});
+    }
+    if (typeof departmentService?.getDepartmentOptions === 'function') {
+      departmentService
+        .getDepartmentOptions()
+        .then((opts) => {
+          if (Array.isArray(opts)) {
+            setDepartmentOptions(opts.map((d) => ({ value: d.id, label: d.name })));
+          }
+        })
+        .catch(() => {});
+    }
+    if (typeof workingScheduleService?.getScheduleOptions === 'function') {
+      workingScheduleService
+        .getScheduleOptions()
+        .then((opts) => {
+          if (Array.isArray(opts)) {
+            setScheduleOptions(opts.map((s) => ({ value: s.id, label: s.name })));
+          }
+        })
+        .catch(() => {});
+    }
   }, []);
 
   const activeFilterCount = [
@@ -247,7 +271,7 @@ export const AttendanceListPage = () => {
       />
 
       {/* Summary Cards Widget */}
-      <AttendanceSummaryCards summary={summary} />
+      <AttendanceSummaryCards summary={summary || {}} />
 
       {/* Toolbar */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
@@ -351,7 +375,7 @@ export const AttendanceListPage = () => {
       <div>
         <Table
           columns={columns}
-          data={records}
+          data={records || []}
           isLoading={loading}
           sortColumn={params.sortBy}
           sortDirection={params.sortDirection}

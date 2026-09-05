@@ -66,12 +66,12 @@ export function PayrunWizardStep2({ wizardData, updateWizardData, onBack }) {
     return employees.filter((e) => {
       if (search) {
         const q = search.toLowerCase();
-        const matchesName = e.fullName.toLowerCase().includes(q);
-        const matchesCode = e.employeeCode.toLowerCase().includes(q);
-        const matchesContract = e.contractCode.toLowerCase().includes(q);
+        const matchesName = (e.fullName || '').toLowerCase().includes(q);
+        const matchesCode = (e.employeeCode || '').toLowerCase().includes(q);
+        const matchesContract = (e.contractCode || '').toLowerCase().includes(q);
         if (!matchesName && !matchesCode && !matchesContract) return false;
       }
-      if (departmentFilter && e.departmentId !== departmentFilter) return false;
+      if (departmentFilter && String(e.departmentId) !== String(departmentFilter)) return false;
       if (eligibilityFilter === 'eligible' && !e.isEligible) return false;
       if (eligibilityFilter === 'ineligible' && e.isEligible) return false;
       return true;

@@ -22,9 +22,15 @@ export const useTimeOffTypes = (params = {}) => {
     setError(null);
     try {
       const res = await timeOffService.getTimeOffTypes(params);
-      setData(res.data);
-      setMetrics(res.metrics);
-      setPagination(res.pagination);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      setData(list);
+      setMetrics(res?.metrics || {
+        total: list.length,
+        active: list.filter((t) => t.isActive).length,
+        allocationRequired: list.filter((t) => t.requiresAllocation && t.isActive).length,
+        paidCount: list.filter((t) => t.isPaid && t.isActive).length,
+      });
+      setPagination(res?.pagination || { page: 1, pageSize: 10, totalItems: list.length, totalPages: 1 });
     } catch (err) {
       setError(err.message || 'Failed to load Time Off Types.');
     } finally {
@@ -197,7 +203,7 @@ export const useEmployeeLeaveBalances = (employeeId) => {
     setError(null);
     try {
       const res = await timeOffService.getEmployeeLeaveBalances(employeeId);
-      setBalances(res.data);
+      setBalances(Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
     } catch (err) {
       setError(err.message || 'Failed to load leave balances.');
     } finally {

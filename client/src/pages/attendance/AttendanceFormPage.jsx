@@ -10,14 +10,24 @@ import { useToast } from '../../components/ui/Toast';
 import { attendanceService } from '../../services/attendanceService';
 import { employeeService } from '../../services/employeeService';
 import { useAuth } from '../../contexts/AuthContext';
+import { ROLES, normalizeRole } from '../../config/permissions';
 import { calculateWorkedMinutes, formatMinutesToHours } from '../../utils/attendanceCalculator';
 
 export const AttendanceFormPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { currentUser } = useAuth();
+  const { currentRole, currentUser } = useAuth();
   const isEditMode = Boolean(id);
+
+  const isAdmin = normalizeRole(currentRole) === ROLES.ADMIN;
+
+  useEffect(() => {
+    if (!isAdmin) {
+      toast.error('Manual attendance record creation is restricted to Admin only.');
+      navigate('/attendance', { replace: true });
+    }
+  }, [isAdmin, navigate, toast]);
 
   const [formData, setFormData] = useState({
     employeeId: '',
@@ -199,6 +209,10 @@ export const AttendanceFormPage = () => {
         <div className="h-96 bg-white rounded-xl border border-slate-200" />
       </div>
     );
+  }
+
+  if (!isAdmin) {
+    return null;
   }
 
   return (

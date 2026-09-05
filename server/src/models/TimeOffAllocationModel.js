@@ -80,7 +80,7 @@ export class TimeOffAllocationModel extends BaseModel {
     }
 
     // Count query
-    const countResult = await q.clone().count('time_off_allocations.id as total').first();
+    const countResult = await q.clone().clearSelect().count('time_off_allocations.id as total').first();
     const total = countResult ? parseInt(countResult.total, 10) : 0;
     const totalPages = Math.ceil(total / limit) || 1;
     const offset = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);

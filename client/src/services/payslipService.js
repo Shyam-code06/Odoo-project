@@ -18,12 +18,62 @@ export const payslipService = {
   getPayslips: async (params = {}) => {
     // 1. Attempt live HTTP REST API call via apiClient
     try {
-      const apiRes = await apiClient.get('/payslips', params);
-      if (apiRes && apiRes.success && apiRes.data) {
-        return apiRes;
+      const endpoint = params.isSelfService || params.employeeId ? '/payslips/my' : '/payslips';
+      const queryParams = { ...params };
+      delete queryParams.isSelfService;
+
+      const apiRes = await apiClient.get(endpoint, queryParams);
+      if (apiRes && apiRes.success && Array.isArray(apiRes.data)) {
+        const rawList = apiRes.data;
+        const formattedItems = rawList.map((row) => ({
+          id: row.id,
+          employeeId: row.employee_id,
+          employeeName: `${row.employee_first_name || ''} ${row.employee_last_name || ''}`.trim() || 'Employee',
+          employeeCode: row.employee_code || '',
+          employeeAvatar: '',
+          departmentId: row.department_id,
+          departmentName: row.department_name || 'Unassigned',
+          employmentType: row.employment_type || 'Full-time',
+          payrunId: row.payrun_id,
+          payrunName: row.payrun_name || `Payrun #${row.payrun_id}`,
+          salaryStructureId: row.salary_structure_id,
+          structureName: row.structure_name || 'Standard Structure',
+          periodStart: row.period_start,
+          periodEnd: row.period_end,
+          grossSalary: Number(row.gross_salary || 0),
+          totalDeductions: Number(row.total_deductions || 0),
+          netSalary: Number(row.net_salary || 0),
+          status: (row.status || 'generated').toLowerCase(),
+          emailSentAt: row.email_sent_at || null,
+          pdfPath: row.pdf_path || null,
+        }));
+
+        const totalCount = apiRes.pagination?.total || formattedItems.length;
+        const page = apiRes.pagination?.page || params.page || 1;
+        const pageSize = apiRes.pagination?.limit || params.pageSize || 10;
+        const totalPages = apiRes.pagination?.totalPages || Math.ceil(totalCount / pageSize) || 1;
+
+        const metrics = {
+          total: totalCount,
+          generatedCount: formattedItems.filter((s) => s.status === 'generated' || s.status === 'computed').length,
+          paidCount: formattedItems.filter((s) => s.status === 'paid').length,
+          totalNetPayroll: Number(formattedItems.reduce((sum, s) => sum + s.netSalary, 0).toFixed(2)),
+        };
+
+        return {
+          success: true,
+          data: {
+            items: formattedItems,
+            total: totalCount,
+            page,
+            pageSize,
+            totalPages,
+            metrics,
+          },
+        };
       }
     } catch (err) {
-      // Backend offline / Endpoint unmapped -> fallback to mock repository
+      console.warn('[payslipService] Live getPayslips failed, fallback to local store:', err.message);
     }
 
     return new Promise((resolve) => {
@@ -176,10 +226,99 @@ export const payslipService = {
     try {
       const apiRes = await apiClient.get(`/payslips/${id}`);
       if (apiRes && apiRes.success && apiRes.data) {
-        return apiRes;
+        const raw = apiRes.data;
+        const lines = (raw.lines || []).map((l) => ({
+          id: l.id,
+          payslipId: l.payslip_id || id,
+          salaryRuleId: l.salary_rule_id,
+          name: l.name || '',
+          code: l.code || '',
+          category: l.category || 'ALW',
+          sequence: Number(l.sequence || 10),
+          amount: Number(l.amount || 0),
+          quantity: Number(l.quantity || 1),
+          rate: Number(l.rate || 100),
+          calculationDetails: l.calculation_details || '',
+        }));
+
+        const uiSlip = {
+          id: raw.id,
+          payrunId: raw.payrun_id,
+          employeeId: raw.employee_id,
+          contractId: raw.contract_id,
+          salaryStructureId: raw.salary_structure_id,
+          periodStart: raw.period_start,
+          periodEnd: raw.period_end,
+          grossSalary: Number(raw.gross_salary || 0),
+          totalDeductions: Number(raw.total_deductions || 0),
+          netSalary: Number(raw.net_salary || 0),
+          status: (raw.status || 'generated').toLowerCase(),
+          pdfPath: raw.pdf_path || null,
+          emailSentAt: raw.email_sent_at || null,
+          createdAt: raw.created_at || new Date().toISOString(),
+          updatedAt: raw.updated_at || new Date().toISOString(),
+          lines,
+        };
+
+        const employee = {
+          id: raw.employee_id,
+          employeeCode: raw.employee_code || '',
+          fullName: `${raw.employee_first_name || ''} ${raw.employee_last_name || ''}`.trim() || 'Employee',
+          email: raw.employee_email || '',
+          phone: raw.employee_phone || '',
+          departmentName: raw.department_name || 'Engineering',
+          jobPositionTitle: raw.job_title || 'Employee',
+          avatar: '',
+        };
+
+        const contract = raw.contract_id
+          ? {
+              id: raw.contract_id,
+              contractCode: raw.contract_number || 'CON-001',
+              wage: Number(raw.base_wage || 0),
+              employmentType: raw.employment_type || 'Full-time',
+              startDate: raw.start_date,
+              endDate: raw.end_date,
+              status: 'Active',
+              hasBankDetails: true,
+            }
+          : null;
+
+        const salaryStructure = {
+          id: raw.salary_structure_id,
+          name: raw.structure_name || 'Salary Structure',
+          code: raw.structure_code || '',
+          isActive: true,
+          ruleCount: lines.length,
+        };
+
+        const payrun = {
+          id: raw.payrun_id,
+          name: raw.payrun_name || `Payrun #${raw.payrun_id}`,
+          status: 'validated',
+          periodStart: raw.period_start,
+          periodEnd: raw.period_end,
+          createdBy: 'HR Payroll Admin',
+        };
+
+        const integrityCheck = validatePayslipTotals(uiSlip, lines);
+
+        return {
+          success: true,
+          data: {
+            payslip: uiSlip,
+            employee,
+            contract,
+            salaryStructure,
+            payrun,
+            lines,
+            integrityCheck,
+            employeeHistory: [],
+          },
+        };
       }
     } catch (err) {
-      // Endpoint offline -> fallback to local mock repository
+      console.warn(`[payslipService] Live getPayslipById(${id}) failed, fallback to local store:`, err.message);
     }
 
     return new Promise((resolve) => {

@@ -126,7 +126,15 @@ export const timeOffRequestAdapter = {
             jobTitle: emp.job_title || emp.jobPosition || '',
             managerName: emp.manager_name || emp.manager || 'Direct Manager',
           }
-        : { id: employeeId, name: 'Unknown Employee', code: '', avatar: '' },
+        : {
+            id: employeeId,
+            name: req.first_name ? `${req.first_name} ${req.last_name || ''}`.trim() : 'Employee',
+            code: req.employee_code || `EMP-${employeeId}`,
+            avatar: '',
+            departmentName: req.department_name || '',
+            jobTitle: req.job_title || '',
+            managerName: 'Direct Manager',
+          },
       timeOffTypeId,
       timeOffType: type
         ? {
@@ -137,7 +145,14 @@ export const timeOffRequestAdapter = {
             requiresAllocation: type.requiresAllocation ?? type.requires_allocation ?? true,
             requiresApproval: type.requiresApproval ?? type.requires_approval ?? true,
           }
-        : { id: timeOffTypeId, name: 'Unknown Type', code: '', unit: 'days' },
+        : {
+            id: timeOffTypeId,
+            name: req.leave_type_name || req.time_off_type_name || 'Leave',
+            code: req.leave_type_code || 'LV',
+            unit: req.unit || 'days',
+            requiresAllocation: true,
+            requiresApproval: true,
+          },
       allocationId: allocationId || null,
       allocation: alloc
         ? {

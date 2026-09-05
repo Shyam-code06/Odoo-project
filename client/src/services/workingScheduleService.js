@@ -319,6 +319,30 @@ export const workingScheduleService = {
       }, 200);
     });
   },
+
+  getScheduleOptions: async () => {
+    try {
+      const apiRes = await apiClient.get('/schedules', { limit: 100 });
+      if (apiRes?.success && apiRes?.data) {
+        const list = Array.isArray(apiRes.data)
+          ? apiRes.data
+          : apiRes.data.schedules || [];
+        return list.map((s) => ({
+          id: s.id,
+          name: s.name,
+          status: s.status,
+        }));
+      }
+    } catch (err) {
+      console.warn('[workingScheduleService] getScheduleOptions failed:', err.message);
+    }
+    const rawSchedules = employeeService._getRawSchedules();
+    return rawSchedules.map((s) => ({
+      id: s.id,
+      name: s.name,
+      status: s.status,
+    }));
+  },
 };
 
 export default workingScheduleService;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Bell, Palette, Shield, Save } from 'lucide-react';
+import { User, Palette, Shield, Save } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
 import { Tabs } from '../../components/ui/Tabs';
@@ -18,13 +18,9 @@ export const AccountSettingsPage = () => {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
-  const [emailNotifs, setEmailNotifs] = useState(true);
-  const [leaveNotifs, setLeaveNotifs] = useState(true);
-  const [payrollNotifs, setPayrollNotifs] = useState(true);
 
   const tabs = [
     { id: 'account', label: 'Personal Information', icon: User },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'security', label: 'Security', icon: Shield },
   ];
@@ -38,7 +34,7 @@ export const AccountSettingsPage = () => {
     <div className="space-y-6">
       <PageHeader
         title="Account Settings"
-        description="Manage your personal account preferences, notification alerts, and security options."
+        description="Manage your personal account preferences and security options."
       />
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
@@ -56,39 +52,6 @@ export const AccountSettingsPage = () => {
               <div className="pt-2">
                 <Button type="submit" variant="primary" leftIcon={Save}>
                   Save Changes
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
-        )}
-
-        {activeTab === 'notifications' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-            </CardHeader>
-            <CardBody className="space-y-6 max-w-xl pt-4">
-              <Switch
-                label="Email Notifications"
-                description="Receive daily digest and important workflow updates via email."
-                checked={emailNotifs}
-                onChange={setEmailNotifs}
-              />
-              <Switch
-                label="Leave Request Alerts"
-                description="Notify when time off requests are approved or require review."
-                checked={leaveNotifs}
-                onChange={setLeaveNotifs}
-              />
-              <Switch
-                label="Payroll Processing Alerts"
-                description="Notify when monthly payruns and payslips are published."
-                checked={payrollNotifs}
-                onChange={setPayrollNotifs}
-              />
-              <div className="pt-2">
-                <Button type="submit" variant="primary" leftIcon={Save}>
-                  Save Preferences
                 </Button>
               </div>
             </CardBody>

@@ -28,6 +28,10 @@ import { JobPositionListPage } from '../pages/jobPositions/JobPositionListPage';
 import { JobPositionDetailsPage } from '../pages/jobPositions/JobPositionDetailsPage';
 import { JobPositionFormPage } from '../pages/jobPositions/JobPositionFormPage';
 
+import { ContractListPage } from '../pages/contracts/ContractListPage';
+import { ContractDetailsPage } from '../pages/contracts/ContractDetailsPage';
+import { ContractFormPage } from '../pages/contracts/ContractFormPage';
+
 import { WorkingScheduleListPage } from '../pages/schedules/WorkingScheduleListPage';
 import { WorkingScheduleDetailsPage } from '../pages/schedules/WorkingScheduleDetailsPage';
 import { WorkingScheduleFormPage } from '../pages/schedules/WorkingScheduleFormPage';
@@ -114,7 +118,7 @@ export const AppRoutes = () => {
             path="/my-attendance"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.MY_ATTENDANCE_VIEW}>
-                <AttendanceListPage />
+                <AttendanceListPage isSelfService={true} />
               </RoleRoute>
             }
           />
@@ -245,10 +249,38 @@ export const AppRoutes = () => {
           />
 
           {/* Workforce Routes (Contracts, Attendance, Time Off) */}
-          <Route path="/contracts" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_VIEW}><PlaceholderPage title="Employment Contracts" description="Manage employment contracts, salary terms, and duration conditions." part="07" iconName="FileText" /></RoleRoute>} />
-          <Route path="/contracts/new" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_CREATE}><PlaceholderPage title="New Contract" part="07" iconName="Plus" /></RoleRoute>} />
-          <Route path="/contracts/:id" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_VIEW}><PlaceholderPage title="Contract Detail" part="07" iconName="FileText" /></RoleRoute>} />
-          <Route path="/contracts/:id/edit" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_EDIT}><PlaceholderPage title="Edit Contract" part="07" iconName="FileText" /></RoleRoute>} />
+          <Route
+            path="/contracts"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_VIEW}>
+                <ContractListPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/contracts/new"
+            element={
+              <RoleRoute strictRoles={[ROLES.HR_PAYROLL_MANAGER]}>
+                <ContractFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/contracts/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_VIEW}>
+                <ContractDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/contracts/:id/edit"
+            element={
+              <RoleRoute strictRoles={[ROLES.HR_PAYROLL_MANAGER]}>
+                <ContractFormPage />
+              </RoleRoute>
+            }
+          />
 
           {/* Working Schedules (Part 06) */}
           <Route
@@ -330,7 +362,7 @@ export const AppRoutes = () => {
           <Route
             path="/attendance/new"
             element={
-              <RoleRoute requiredPermission={PERMISSIONS.ATTENDANCE_CREATE}>
+              <RoleRoute strictRoles={[ROLES.ADMIN]}>
                 <AttendanceFormPage />
               </RoleRoute>
             }

@@ -25,7 +25,22 @@ export const timeOffService = {
         const rawTypes = Array.isArray(apiRes.data)
           ? apiRes.data
           : apiRes.data.types || [];
-        return rawTypes.map(timeOffTypeAdapter.toUIModel);
+        const uiList = rawTypes.map(timeOffTypeAdapter.toUIModel);
+        return {
+          data: uiList,
+          metrics: {
+            total: uiList.length,
+            active: uiList.filter((t) => t.isActive).length,
+            allocationRequired: uiList.filter((t) => t.requiresAllocation && t.isActive).length,
+            paidCount: uiList.filter((t) => t.isPaid && t.isActive).length,
+          },
+          pagination: {
+            page: apiRes.pagination?.page || params.page || 1,
+            pageSize: apiRes.pagination?.limit || params.pageSize || 10,
+            totalItems: apiRes.pagination?.total || uiList.length,
+            totalPages: apiRes.pagination?.totalPages || 1,
+          },
+        };
       }
     } catch (err) {
       console.warn('[timeOffService] Live getTimeOffTypes failed, using local store:', err.message);
@@ -270,6 +285,36 @@ export const timeOffService = {
   // ==========================================
 
   getAllocations: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const endpoint = params.isSelfService || params.employeeId ? '/time-off/allocations/my' : '/time-off/allocations';
+      const apiRes = await apiClient.get(endpoint, params);
+      if (apiRes?.success && apiRes?.data) {
+        const rawList = Array.isArray(apiRes.data) ? apiRes.data : apiRes.data.allocations || [];
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawTypes = employeeService._getRawTimeOffTypes();
+        const uiList = rawList.map((a) => timeOffAllocationAdapter.toUIModel(a, rawEmployees, rawTypes));
+        return {
+          data: uiList,
+          metrics: {
+            total: uiList.length,
+            pending: uiList.filter((a) => a.status === 'pending').length,
+            approved: uiList.filter((a) => a.status === 'approved').length,
+            totalRemaining: Number(uiList.reduce((acc, curr) => acc + (curr.remainingAmount || 0), 0).toFixed(2)),
+          },
+          pagination: {
+            page: apiRes.pagination?.page || params.page || 1,
+            pageSize: apiRes.pagination?.limit || params.pageSize || 10,
+            totalItems: apiRes.pagination?.total || uiList.length,
+            totalPages: apiRes.pagination?.totalPages || Math.ceil(uiList.length / (params.pageSize || 10)) || 1,
+          },
+        };
+      }
+    } catch (err) {
+      console.warn('[timeOffService] Live getAllocations failed, fallback to local store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawEmployees = employeeService._getRawEmployees();
@@ -599,7 +644,8 @@ export const timeOffService = {
   getTimeOffRequests: async (params = {}) => {
     // 1. Attempt live HTTP REST API call via apiClient
     try {
-      const apiRes = await apiClient.get('/time-off/requests', params);
+      const endpoint = params.isSelfService || params.employeeId ? '/time-off/requests/my' : '/time-off/requests';
+      const apiRes = await apiClient.get(endpoint, params);
       if (apiRes?.success && apiRes?.data) {
         const rawList = Array.isArray(apiRes.data)
           ? apiRes.data
@@ -611,8 +657,23 @@ export const timeOffService = {
           timeOffRequestAdapter.toUIModel(r, rawEmployees, rawTypes, rawAllocs)
         );
 
+        const approvedDays = reqs
+          .filter((r) => r.status === 'approved' && r.timeOffType?.unit === 'days')
+          .reduce((sum, r) => sum + (r.duration || 0), 0);
+        const approvedHours = reqs
+          .filter((r) => r.status === 'approved' && r.timeOffType?.unit === 'hours')
+          .reduce((sum, r) => sum + (r.duration || 0), 0);
+
         return {
           data: reqs,
+          metrics: {
+            total: reqs.length,
+            pending: reqs.filter((r) => r.status === 'pending').length,
+            approved: reqs.filter((r) => r.status === 'approved').length,
+            rejected: reqs.filter((r) => r.status === 'rejected').length,
+            approvedDays,
+            approvedHours,
+          },
           pagination: {
             page: apiRes.pagination?.page || params.page || 1,
             pageSize: apiRes.pagination?.limit || params.pageSize || 10,
@@ -657,12 +718,24 @@ export const timeOffService = {
           reqs = reqs.filter((r) => r.timeOffTypeId === params.timeOffTypeId);
         }
 
-        // Status filter (pending | approved | rejected)
+        // Status filter
         if (params.status) {
           reqs = reqs.filter((r) => r.status === params.status.toLowerCase());
         }
 
-        // Date Range filter
+        // Search (Employee Name, Code, Reason)
+        if (params.search) {
+          const q = params.search.toLowerCase().trim();
+          reqs = reqs.filter(
+            (r) =>
+              r.employee.name.toLowerCase().includes(q) ||
+              r.employee.code.toLowerCase().includes(q) ||
+              r.reason.toLowerCase().includes(q) ||
+              r.timeOffType.name.toLowerCase().includes(q)
+          );
+        }
+
+        // Date Range Filters
         if (params.startDate) {
           reqs = reqs.filter((r) => r.startDate >= params.startDate);
         }
@@ -670,27 +743,10 @@ export const timeOffService = {
           reqs = reqs.filter((r) => r.endDate <= params.endDate);
         }
 
-        // Search (Employee Name, Code, Type Name, Reason)
-        if (params.search) {
-          const q = params.search.toLowerCase().trim();
-          reqs = reqs.filter(
-            (r) =>
-              r.employee.name.toLowerCase().includes(q) ||
-              r.employee.code.toLowerCase().includes(q) ||
-              r.timeOffType.name.toLowerCase().includes(q) ||
-              (r.reason && r.reason.toLowerCase().includes(q))
-          );
-        }
-
-        // Summary metrics calculation
-        const allUIReqs = employeeService
+        // Calculate Summary Metrics
+        const scopedReqs = employeeService
           ._getRawTimeOffRequests()
           .map((r) => timeOffRequestAdapter.toUIModel(r, rawEmployees, rawTypes, rawAllocs));
-
-        // Filter metrics by employeeId if scoped
-        const scopedReqs = params.employeeId
-          ? allUIReqs.filter((r) => r.employeeId === params.employeeId)
-          : allUIReqs;
 
         const metrics = {
           total: scopedReqs.length,
@@ -743,6 +799,20 @@ export const timeOffService = {
   },
 
   getTimeOffRequestById: async (id) => {
+    try {
+      const apiRes = await apiClient.get(`/time-off/requests/${id}`);
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawTypes = employeeService._getRawTimeOffTypes();
+        const rawAllocs = employeeService._getRawTimeOffAllocations();
+        return {
+          data: timeOffRequestAdapter.toUIModel(apiRes.data, rawEmployees, rawTypes, rawAllocs),
+        };
+      }
+    } catch (err) {
+      console.warn(`[timeOffService] Live getTimeOffRequestById(${id}) failed, using fallback:`, err.message);
+    }
+
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawReqs = employeeService._getRawTimeOffRequests();
@@ -763,6 +833,39 @@ export const timeOffService = {
   },
 
   createTimeOffRequest: async (requestData) => {
+    // 1. Attempt live HTTP API call
+    try {
+      const payload = {
+        employee_id: requestData.employeeId ? Number(requestData.employeeId) : undefined,
+        time_off_type_id: Number(requestData.timeOffTypeId),
+        start_date: requestData.startDate,
+        end_date: requestData.endDate,
+        duration: requestData.duration ? Number(requestData.duration) : undefined,
+        reason: requestData.reason || '',
+      };
+      const apiRes = await apiClient.post('/time-off/requests', payload);
+      if (apiRes?.success && apiRes?.data) {
+        const rawEmployees = employeeService._getRawEmployees();
+        const rawTypes = employeeService._getRawTimeOffTypes();
+        const rawAllocs = employeeService._getRawTimeOffAllocations();
+        return {
+          success: true,
+          data: timeOffRequestAdapter.toUIModel(apiRes.data, rawEmployees, rawTypes, rawAllocs),
+          message: apiRes.message || 'Leave request submitted successfully.',
+        };
+      }
+    } catch (err) {
+      const errorMsg =
+        err.response?.data?.message ||
+        (Array.isArray(err.response?.data?.errors)
+          ? err.response.data.errors.map((e) => e.message || e).join(', ')
+          : null) ||
+        err.message ||
+        'Failed to create leave request.';
+      throw new Error(errorMsg);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const { employeeId, timeOffTypeId, allocationId, startDate, endDate, customHours, reason } =
@@ -1135,6 +1238,31 @@ export const timeOffService = {
   // ==========================================
 
   getEmployeeLeaveBalances: async (employeeId) => {
+    // 1. Attempt live HTTP API call
+    try {
+      const endpoint = employeeId && !isNaN(Number(employeeId)) ? `/time-off/balance/${employeeId}` : '/time-off/balance';
+      const apiRes = await apiClient.get(endpoint);
+      if (apiRes?.success && apiRes?.data) {
+        const rawBalances = apiRes.data.balances || apiRes.data;
+        if (Array.isArray(rawBalances)) {
+          return {
+            data: rawBalances.map((b) => ({
+              timeOffTypeId: b.time_off_type_id || b.timeOffTypeId || b.id,
+              timeOffTypeName: b.name || b.timeOffTypeName,
+              code: b.code,
+              unit: b.unit,
+              allocated: Number(b.allocated_amount ?? b.allocated ?? 0),
+              used: Number(b.used_amount ?? b.used ?? 0),
+              remaining: Number(b.available ?? b.remaining ?? 0),
+            })),
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('[timeOffService] Live getEmployeeLeaveBalances failed, using fallback:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         if (!employeeId) {

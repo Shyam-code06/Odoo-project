@@ -29,15 +29,32 @@ export const payrunService = {
           .map((p) => payrunAdapter.toUIModel(p, rawStructs, rawPEs, rawSlips))
           .filter(Boolean);
 
+        const total = apiRes.pagination?.total || items.length;
+        const page = apiRes.pagination?.page || params.page || 1;
+        const pageSize = apiRes.pagination?.limit || params.pageSize || 10;
+        const totalPages =
+          apiRes.pagination?.totalPages ||
+          Math.ceil(items.length / (params.pageSize || 10)) ||
+          1;
+
+        const metrics = {
+          total: items.length,
+          draft: items.filter((p) => p.status === 'Draft').length,
+          computed: items.filter((p) => p.status === 'Computed').length,
+          validated: items.filter((p) => p.status === 'Validated').length,
+          paid: items.filter((p) => p.status === 'Paid').length,
+        };
+
         return {
-          data: items,
-          total: apiRes.pagination?.total || items.length,
-          page: apiRes.pagination?.page || params.page || 1,
-          pageSize: apiRes.pagination?.limit || params.pageSize || 10,
-          totalPages:
-            apiRes.pagination?.totalPages ||
-            Math.ceil(items.length / (params.pageSize || 10)) ||
-            1,
+          success: true,
+          data: {
+            items,
+            total,
+            page,
+            pageSize,
+            totalPages,
+            metrics,
+          },
         };
       }
     } catch (err) {

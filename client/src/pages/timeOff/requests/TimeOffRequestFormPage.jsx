@@ -20,7 +20,7 @@ export const TimeOffRequestFormPage = () => {
   const isEdit = Boolean(id);
 
   const isEmployeeRole = user?.role === 'Employee';
-  const defaultEmpId = isEmployeeRole ? (user?.employeeId || 'emp-001') : '';
+  const defaultEmpId = isEmployeeRole ? (user?.employee_id || user?.id || '') : '';
 
   const [formData, setFormData] = useState({
     employeeId: defaultEmpId,
@@ -79,7 +79,9 @@ export const TimeOffRequestFormPage = () => {
   }, [id, isEdit, isEmployeeRole]);
 
   // Derived selected type & duration
-  const selectedType = timeOffTypes.find((t) => t.id === formData.timeOffTypeId);
+  const safeTypes = Array.isArray(timeOffTypes) ? timeOffTypes : [];
+  const safeAllocs = Array.isArray(allAllocations) ? allAllocations : [];
+  const selectedType = safeTypes.find((t) => t.id === formData.timeOffTypeId);
   const unitLabel = selectedType ? selectedType.unit : 'days';
 
   const duration = calculateRequestDuration(
@@ -95,7 +97,7 @@ export const TimeOffRequestFormPage = () => {
     formData.timeOffTypeId,
     formData.startDate,
     formData.endDate,
-    allAllocations
+    safeAllocs
   );
 
   // Auto-select first eligible allocation when type or dates change
@@ -105,7 +107,7 @@ export const TimeOffRequestFormPage = () => {
     }
   }, [selectedType, eligibleAllocations.length, formData.allocationId]);
 
-  const selectedAllocation = allAllocations.find((a) => a.id === formData.allocationId);
+  const selectedAllocation = safeAllocs.find((a) => a.id === formData.allocationId);
   const remainingBalance = selectedAllocation ? selectedAllocation.remainingAmount : 0;
   const isInsufficient = selectedType?.requiresAllocation && duration > remainingBalance;
 
@@ -162,7 +164,11 @@ export const TimeOffRequestFormPage = () => {
       } else {
         await timeOffService.createTimeOffRequest(formData);
       }
-      navigate('/time-off/requests');
+      if (isEmployeeRole) {
+        navigate('/my-time-off');
+      } else {
+        navigate('/time-off/requests');
+      }
     } catch (err) {
       setError(err.message || 'Failed to submit Time Off request.');
     } finally {

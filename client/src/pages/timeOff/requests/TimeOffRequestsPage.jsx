@@ -36,9 +36,10 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
   const { user, hasPermission } = useAuth();
 
   const isEmployeeRole = user?.role === 'Employee' || isSelfService;
-  const currentEmpId = isEmployeeRole ? (user?.employeeId || 'emp-001') : employeeIdQuery;
+  const currentEmpId = isEmployeeRole ? (user?.employee_id || user?.id || '') : employeeIdQuery;
 
-  const canCreate = hasPermission(PERMISSIONS.TIME_OFF_CREATE) || isEmployeeRole;
+  // Only employees on their personal self-service page submit requests; hidden from admin/workforce view
+  const canCreate = isSelfService;
   const canEdit = hasPermission(PERMISSIONS.TIME_OFF_EDIT);
   const canApprove = hasPermission(PERMISSIONS.TIME_OFF_APPROVE) && !isEmployeeRole;
   const canDelete = hasPermission(PERMISSIONS.EMPLOYEES_DELETE);
@@ -46,6 +47,7 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
   const [params, setParams] = useState({
     search: '',
     employeeId: currentEmpId,
+    isSelfService: isEmployeeRole,
     timeOffTypeId: '',
     status: '',
     startDate: '',
@@ -64,7 +66,17 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
 
   const { data, metrics, pagination, loading, error, refetch } = useTimeOffRequests(params);
   const { balances, loading: balancesLoading } = useEmployeeLeaveBalances(currentEmpId || 'emp-001');
-  const { data: timeOffTypes } = useTimeOffTypes({ pageSize: 100 });
+  const { data: rawTimeOffTypes } = useTimeOffTypes({ pageSize: 100 });
+  const timeOffTypes = Array.isArray(rawTimeOffTypes) ? rawTimeOffTypes : [];
+  const safeData = Array.isArray(data) ? data : [];
+  const safeMetrics = metrics || {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    approvedDays: 0,
+    approvedHours: 0,
+  };
   const [employees, setEmployees] = useState([]);
 
   useEffect(() => {
@@ -228,7 +240,7 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
               <Calendar className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-neutral-900 mt-2">{metrics.total}</p>
+          <p className="text-2xl font-bold text-neutral-900 mt-2">{safeMetrics.total}</p>
           <span className="text-xs text-neutral-500 mt-1 block">Submitted requests</span>
         </div>
 
@@ -241,7 +253,7 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-neutral-900 mt-2">{metrics.pending}</p>
+          <p className="text-2xl font-bold text-neutral-900 mt-2">{safeMetrics.pending}</p>
           <span className="text-xs text-amber-600 font-medium mt-1 block">Awaiting review</span>
         </div>
 
@@ -254,9 +266,9 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-neutral-900 mt-2">{metrics.approved}</p>
+          <p className="text-2xl font-bold text-neutral-900 mt-2">{safeMetrics.approved}</p>
           <span className="text-xs text-emerald-600 font-medium mt-1 block">
-            {metrics.approvedDays} Days / {metrics.approvedHours} Hours approved
+            {safeMetrics.approvedDays} Days / {safeMetrics.approvedHours} Hours approved
           </span>
         </div>
 
@@ -269,7 +281,7 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
               <XCircle className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-neutral-900 mt-2">{metrics.rejected}</p>
+          <p className="text-2xl font-bold text-neutral-900 mt-2">{safeMetrics.rejected}</p>
           <span className="text-xs text-neutral-500 mt-1 block">Refused requests</span>
         </div>
       </div>
@@ -347,7 +359,7 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
           </div>
         ) : error ? (
           <div className="p-8 text-center text-red-600 text-sm">{error}</div>
-        ) : data.length === 0 ? (
+        ) : safeData.length === 0 ? (
           <div className="p-12 text-center">
             <Calendar className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
             <h3 className="text-base font-semibold text-neutral-800">No time off requests found</h3>
@@ -380,11 +392,11 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200 text-xs">
-                {data.map((req) => (
+                {safeData.map((req) => (
                   <tr key={req.id} className="hover:bg-neutral-50/80 transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-3">
-                        {req.employee.avatar ? (
+                        {req.employee?.avatar ? (
                           <img
                             src={req.employee.avatar}
                             alt=""
@@ -392,28 +404,28 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
                           />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-semibold text-xs">
-                            {req.employee.name.charAt(0)}
+                            {(req.employee?.name || 'E').charAt(0)}
                           </div>
                         )}
                         <div>
-                          <div className="font-semibold text-neutral-900">{req.employee.name}</div>
+                          <div className="font-semibold text-neutral-900">{req.employee?.name || 'Employee'}</div>
                           <div className="text-[11px] text-neutral-500 font-mono">
-                            {req.employee.code}
+                            {req.employee?.code || ''}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="font-medium text-neutral-900">{req.timeOffType.name}</div>
+                      <div className="font-medium text-neutral-900">{req.timeOffType?.name || 'Leave'}</div>
                       <div className="text-[11px] text-neutral-500 font-mono capitalize">
-                        {req.timeOffType.unit}
+                        {req.timeOffType?.unit || 'days'}
                       </div>
                     </td>
                     <td className="py-3 px-4 text-neutral-600 font-mono text-[11px]">
                       {req.startDate} → {req.endDate}
                     </td>
                     <td className="py-3 px-4 font-bold text-neutral-900">
-                      {req.duration} {req.timeOffType.unit}
+                      {req.duration} {req.timeOffType?.unit || 'days'}
                     </td>
                     <td className="py-3 px-4 max-w-xs truncate text-neutral-600">
                       {req.reason || '—'}

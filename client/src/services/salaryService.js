@@ -34,19 +34,25 @@ export const salaryService = {
           salaryStructureAdapter.toUIModel(s, rawRules)
         );
 
+        const total = apiRes.pagination?.total || structs.length;
+        const page = apiRes.pagination?.page || params.page || 1;
+        const pageSize = apiRes.pagination?.limit || params.pageSize || 10;
+        const totalPages = apiRes.pagination?.totalPages || Math.ceil(total / pageSize) || 1;
+
         return {
-          data: structs,
-          metrics: {
-            total: structs.length,
-            active: structs.filter((s) => s.isActive).length,
-            inactive: structs.filter((s) => !s.isActive).length,
-            totalRules: rawRules.length,
-          },
-          pagination: {
-            page: 1,
-            pageSize: structs.length,
-            totalItems: structs.length,
-            totalPages: 1,
+          success: true,
+          data: {
+            items: structs,
+            total,
+            page,
+            pageSize,
+            totalPages,
+            metrics: {
+              total: structs.length,
+              active: structs.filter((s) => s.isActive).length,
+              inactive: structs.filter((s) => !s.isActive).length,
+              totalRules: rawRules.length,
+            },
           },
         };
       }
@@ -123,6 +129,30 @@ export const salaryService = {
   },
 
   getSalaryStructureById: async (id) => {
+    try {
+      const apiRes = await apiClient.get(`/salary-structures/${id}`);
+      if (apiRes?.success && apiRes?.data) {
+        const rawRules = employeeService._getRawSalaryRules() || [];
+        const rawCategories = employeeService._getRawSalaryRuleCategories() || [];
+        const rawStructs = [apiRes.data];
+        const uiStruct = salaryStructureAdapter.toUIModel(apiRes.data, apiRes.data.rules || rawRules);
+        const attachedRules = (apiRes.data.rules || rawRules.filter((r) => r.salary_structure_id === id))
+          .map((r) => salaryRuleAdapter.toUIModel(r, rawStructs, rawCategories))
+          .filter(Boolean)
+          .sort((a, b) => a.sequence - b.sequence);
+
+        return {
+          success: true,
+          data: {
+            ...uiStruct,
+            rules: attachedRules,
+          },
+        };
+      }
+    } catch (err) {
+      console.warn('[salaryService] Live getSalaryStructureById failed, using local store:', err.message);
+    }
+
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawStructs = employeeService._getRawSalaryStructures() || [];

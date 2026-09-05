@@ -26,24 +26,24 @@ router.get('/applicable', getApplicableContract);
 router.get('/', getContracts);
 router.get('/:id', getContractById);
 
-// Write endpoints (Restricted to Admin, HR Manager, HR Payroll Manager)
+// Write endpoints (Restricted strictly to HR Payroll Manager)
 router.post(
   '/',
-  authorize('Admin', 'HR Manager', 'HR Payroll Manager'),
+  authorize('HR Payroll Manager'),
   validateContractCreate,
   createContract
 );
 
 router.put(
   '/:id',
-  authorize('Admin', 'HR Manager', 'HR Payroll Manager'),
+  authorize('HR Payroll Manager'),
   validateContractUpdate,
   updateContract
 );
 
 router.patch(
   '/:id/status',
-  authorize('Admin', 'HR Manager', 'HR Payroll Manager'),
+  authorize('HR Payroll Manager'),
   validateContractStatus,
   updateContractStatus
 );

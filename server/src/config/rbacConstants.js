@@ -60,7 +60,7 @@ export const ROLE_PERMISSIONS = {
     'employee.read', 'employee.read.own', 'employee.create', 'employee.update', 'employee.delete',
     'contract.read', 'contract.read.own', 'contract.create', 'contract.update', 'contract.delete',
     'schedule.read', 'schedule.create', 'schedule.update', 'schedule.delete',
-    'attendance.read', 'attendance.read.own', 'attendance.create.own', 'attendance.correct', 'attendance.delete',
+    'attendance.read', 'attendance.read.own', 'attendance.create.own',
     'timeoff.read', 'timeoff.read.own', 'timeoff.request.own', 'timeoff.approve', 'timeoff.allocate',
     'payrun.read', 'payrun.create', 'payrun.compute', 'payrun.validate', 'payrun.mark_paid', 'payrun.send', 'payrun.delete',
     'payslip.read', 'payslip.read.own', 'payslip.generate', 'payslip.send',
@@ -73,7 +73,7 @@ export const ROLE_PERMISSIONS = {
     'employee.read', 'employee.read.own', 'employee.create', 'employee.update', 'employee.delete',
     'contract.read', 'contract.read.own', 'contract.create', 'contract.update', 'contract.delete',
     'schedule.read', 'schedule.create', 'schedule.update', 'schedule.delete',
-    'attendance.read', 'attendance.read.own', 'attendance.create.own', 'attendance.correct',
+    'attendance.read', 'attendance.read.own', 'attendance.create.own',
     'timeoff.read', 'timeoff.read.own', 'timeoff.request.own', 'timeoff.approve', 'timeoff.allocate',
     'payrun.read', 'payrun.create', 'payrun.compute', 'payrun.validate',
     'payslip.read', 'payslip.read.own', 'payslip.generate',
@@ -84,9 +84,9 @@ export const ROLE_PERMISSIONS = {
 
   HR_MANAGER: [
     'employee.read', 'employee.read.own', 'employee.create', 'employee.update', 'employee.delete',
-    'contract.read', 'contract.read.own', 'contract.create', 'contract.update', 'contract.delete',
+    'contract.read', 'contract.read.own',
     'schedule.read', 'schedule.create', 'schedule.update', 'schedule.delete',
-    'attendance.read', 'attendance.read.own', 'attendance.create.own', 'attendance.correct', 'attendance.delete',
+    'attendance.read', 'attendance.read.own', 'attendance.create.own',
     'timeoff.read', 'timeoff.read.own', 'timeoff.request.own', 'timeoff.approve', 'timeoff.allocate',
     'reports.read.hr'
   ],

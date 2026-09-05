@@ -8,9 +8,10 @@ export const useAttendance = (initialParams = {}) => {
   const { currentUser, currentRole } = useAuth();
   const [searchParams] = useSearchParams();
 
-  // If user is Employee role, restrict to their own employee ID
-  const isEmployeeRole = currentRole === ROLES.EMPLOYEE;
-  const loggedInEmpId = currentUser?.employeeId || (isEmployeeRole ? 'emp-001' : '');
+  // If user is Employee role or isSelfService prop is set, restrict to self-service
+  const isEmployeeRole = currentRole === ROLES.EMPLOYEE || Boolean(initialParams.isSelfService);
+  const realEmpId = currentUser?.employee_id || currentUser?.id;
+  const loggedInEmpId = realEmpId || (isEmployeeRole ? 1 : '');
 
   const initEmp = searchParams.get('employeeId') || searchParams.get('employee_id') || (isEmployeeRole ? loggedInEmpId : '');
   const initDept = searchParams.get('departmentId') || searchParams.get('department_id') || '';
@@ -41,6 +42,7 @@ export const useAttendance = (initialParams = {}) => {
     date: initDate,
     startDate: '',
     endDate: '',
+    isSelfService: isEmployeeRole,
     restrictEmployeeId: isEmployeeRole ? loggedInEmpId : '',
     page: 1,
     pageSize: 10,
@@ -54,10 +56,10 @@ export const useAttendance = (initialParams = {}) => {
     setError(null);
     try {
       const res = await attendanceService.getAttendanceRecords(params);
-      setRecords(res.data);
-      setTotalCount(res.total);
-      setTotalPages(res.totalPages);
-      if (res.summary) {
+      setRecords(Array.isArray(res?.data) ? res.data : []);
+      setTotalCount(res?.total || 0);
+      setTotalPages(res?.totalPages || 1);
+      if (res?.summary) {
         setSummary(res.summary);
       }
     } catch (err) {

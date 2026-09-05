@@ -4,10 +4,27 @@ import { calculateWorkedMinutes, deriveAttendanceStatus } from '../utils/attenda
 import { apiClient } from './apiClient';
 
 export const attendanceService = {
+  checkIn: async (coords = {}) => {
+    return apiClient.post('/attendance/check-in', coords);
+  },
+
+  checkOut: async (coords = {}) => {
+    return apiClient.post('/attendance/check-out', coords);
+  },
+
+  getTodayStatus: async () => {
+    return apiClient.get('/attendance/today');
+  },
+
   getAttendanceRecords: async (params = {}) => {
     // 1. Attempt live HTTP REST API call via apiClient
     try {
-      const apiRes = await apiClient.get('/attendance', params);
+      const endpoint = params.isSelfService || params.restrictEmployeeId ? '/attendance/my' : '/attendance';
+      const queryParams = { ...params };
+      delete queryParams.isSelfService;
+      delete queryParams.restrictEmployeeId;
+
+      const apiRes = await apiClient.get(endpoint, queryParams);
       if (apiRes?.success && apiRes?.data) {
         const rawAtt = Array.isArray(apiRes.data)
           ? apiRes.data
@@ -21,16 +38,16 @@ export const attendanceService = {
           attendanceAdapter.toUIModel(a, rawEmployees, rawDepts, rawPositions, rawSchedules)
         );
 
-        const totalRecords = list.length;
+        const totalRecords = apiRes.pagination?.total || list.length;
         const presentCount = list.filter((a) => a.status === 'Present').length;
         const lateCount = list.filter((a) => a.status === 'Late').length;
         const absentCount = list.filter((a) => a.status === 'Absent').length;
-        const missingCheckOutCount = list.filter((a) => a.status === 'Incomplete').length;
+        const missingCheckOutCount = list.filter((a) => a.status === 'Incomplete' || !a.checkOut).length;
         const correctedCount = list.filter((a) => a.isCorrected).length;
 
         return {
           data: list,
-          total: apiRes.pagination?.total || totalRecords,
+          total: totalRecords,
           page: apiRes.pagination?.page || params.page || 1,
           pageSize: apiRes.pagination?.limit || params.pageSize || 10,
           totalPages:

@@ -17,6 +17,11 @@ export const attendanceAdapter = {
     let posObj = null;
     let schedObj = null;
 
+    const capitalize = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '');
+    let normalizedStatus = att.status
+      ? att.status === 'half_day' ? 'Half Day' : capitalize(att.status)
+      : null;
+
     if (empObj) {
       deptObj = departments.find((d) => d.id === empObj.department_id);
       posObj = jobPositions.find((p) => p.id === empObj.job_position_id);
@@ -24,16 +29,30 @@ export const attendanceAdapter = {
 
       employee = {
         id: empObj.id,
-        name: `${empObj.first_name} ${empObj.last_name}`,
+        name: `${empObj.first_name} ${empObj.last_name}`.trim(),
         code: empObj.employee_code,
         email: empObj.email,
         avatar: empObj.avatar,
         departmentId: empObj.department_id,
-        departmentName: deptObj ? deptObj.name : 'Unassigned',
-        jobPositionTitle: posObj ? posObj.title : 'Unassigned',
+        departmentName: deptObj ? deptObj.name : (empObj.department_name || 'Unassigned'),
+        jobPositionTitle: posObj ? posObj.title : (empObj.job_position_title || 'Unassigned'),
         workingScheduleId: empObj.working_schedule_id,
         workingScheduleName: schedObj ? schedObj.name : 'Standard Shift',
         workingSchedule: schedObj || null,
+      };
+    } else {
+      employee = {
+        id: att.employee_id,
+        name: `${att.first_name || ''} ${att.last_name || ''}`.trim() || att.employee_name || 'Employee',
+        code: att.employee_code || `EMP-${att.employee_id}`,
+        email: att.email || '',
+        avatar: att.avatar || null,
+        departmentId: att.department_id,
+        departmentName: att.department_name || 'Unassigned',
+        jobPositionTitle: att.job_title || 'Unassigned',
+        workingScheduleId: att.working_schedule_id,
+        workingScheduleName: att.working_schedule_name || 'Standard Shift',
+        workingSchedule: null,
       };
     }
 
@@ -41,7 +60,7 @@ export const attendanceAdapter = {
       ? att.worked_minutes
       : calculateWorkedMinutes(att.check_in, att.check_out);
 
-    const derivedStatus = att.status || deriveAttendanceStatus(att.check_in, att.check_out, schedObj);
+    const derivedStatus = normalizedStatus || deriveAttendanceStatus(att.check_in, att.check_out, schedObj);
     const exceptions = detectExceptions(att.check_in, att.check_out, schedObj);
 
     const isCorrected = Boolean(att.corrected_by || att.correction_reason);

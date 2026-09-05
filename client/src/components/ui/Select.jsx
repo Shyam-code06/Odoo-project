@@ -20,6 +20,13 @@ export const Select = React.forwardRef(
   ) => {
     const selectId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
 
+    const hasEmptyOption = options.some((opt) => {
+      const optVal = typeof opt === 'object' && opt !== null ? opt.value : opt;
+      return optVal === '' || optVal === undefined;
+    });
+
+    const showPlaceholder = Boolean(placeholder) && !hasEmptyOption;
+
     return (
       <div className="w-full flex flex-col gap-1.5">
         {label && (
@@ -39,16 +46,16 @@ export const Select = React.forwardRef(
           } ${className}`}
           {...props}
         >
-          {placeholder && (
+          {showPlaceholder && (
             <option value="" disabled>
               {placeholder}
             </option>
           )}
-          {options.map((opt) => {
-            const optValue = typeof opt === 'object' ? opt.value : opt;
-            const optLabel = typeof opt === 'object' ? opt.label : opt;
+          {options.map((opt, idx) => {
+            const optValue = typeof opt === 'object' && opt !== null ? opt.value : opt;
+            const optLabel = typeof opt === 'object' && opt !== null ? opt.label : opt;
             return (
-              <option key={optValue} value={optValue}>
+              <option key={optValue !== undefined && optValue !== '' ? optValue : `empty-${idx}`} value={optValue}>
                 {optLabel}
               </option>
             );
