@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, CheckCheck, Inbox } from 'lucide-react';
 import { Dropdown } from '../ui/Dropdown';
-import { MOCK_NOTIFICATIONS } from '../../mocks/authData';
+import { MOCK_NOTIFICATIONS_BY_ROLE } from '../../mocks/authData';
 import { Badge } from '../ui/Badge';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const NotificationDropdown = () => {
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const { currentRole } = useAuth();
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const roleNotifs = MOCK_NOTIFICATIONS_BY_ROLE[currentRole] || MOCK_NOTIFICATIONS_BY_ROLE['Employee'] || [];
+    setNotifications(roleNotifs);
+  }, [currentRole]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -36,7 +43,6 @@ export const NotificationDropdown = () => {
         </button>
       }
     >
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-xs text-slate-800">Notifications</span>
@@ -50,7 +56,7 @@ export const NotificationDropdown = () => {
           <button
             type="button"
             onClick={handleMarkAllRead}
-            className="text-[11px] font-medium text-orange-600 hover:text-orange-700 flex items-center gap-1"
+            className="text-[11px] font-medium text-orange-600 hover:text-orange-700 flex items-center gap-1 cursor-pointer"
           >
             <CheckCheck className="w-3.5 h-3.5" />
             Mark all read
@@ -58,12 +64,11 @@ export const NotificationDropdown = () => {
         )}
       </div>
 
-      {/* List */}
       <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
         {notifications.length === 0 ? (
           <div className="py-8 text-center text-slate-400">
             <Inbox className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-xs">No notifications</p>
+            <p className="text-xs">No notifications for {currentRole}</p>
           </div>
         ) : (
           notifications.map((notif) => (
@@ -93,9 +98,8 @@ export const NotificationDropdown = () => {
         )}
       </div>
 
-      {/* Footer */}
       <div className="p-2 border-t border-slate-100 text-center bg-slate-50/50">
-        <span className="text-[11px] text-slate-400">Mock Notifications System</span>
+        <span className="text-[11px] text-slate-400">Role-Tailored HR Notifications</span>
       </div>
     </Dropdown>
   );

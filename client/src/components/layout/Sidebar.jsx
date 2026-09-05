@@ -3,7 +3,6 @@ import { NavLink, useLocation } from 'react-router-dom';
 import * as Icons from 'lucide-react';
 import { NAVIGATION_CATEGORIES } from '../../config/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { hasRolePermission } from '../../config/permissions';
 
 export const Sidebar = ({
   isCollapsed,
@@ -11,10 +10,9 @@ export const Sidebar = ({
   isMobileOpen,
   onCloseMobile,
 }) => {
-  const { currentRole } = useAuth();
+  const { currentRole, hasPermission } = useAuth();
   const location = useLocation();
 
-  // Helper to render icon by string name dynamically
   const renderIcon = (name) => {
     const IconComponent = Icons[name] || Icons.Circle;
     return <IconComponent className="w-5 h-5 shrink-0 transition-colors" />;
@@ -25,7 +23,6 @@ export const Sidebar = ({
       {/* Brand Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
-          {/* Logo Mark */}
           <div className="w-9 h-9 rounded-xl bg-orange-500 text-white font-black text-lg flex items-center justify-center shadow-sm shadow-orange-500/20 shrink-0">
             H
           </div>
@@ -41,11 +38,10 @@ export const Sidebar = ({
           )}
         </div>
 
-        {/* Collapse toggle icon button for desktop */}
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
           title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
           {isCollapsed ? (
@@ -59,9 +55,9 @@ export const Sidebar = ({
       {/* Navigation Links Area */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {NAVIGATION_CATEGORIES.map((category) => {
-          // Filter items by active user role
+          // Filter navigation items using permission check
           const visibleItems = category.items.filter((item) =>
-            hasRolePermission(currentRole, item.allowedRoles)
+            hasPermission(item.permission)
           );
 
           if (visibleItems.length === 0) return null;
@@ -90,7 +86,6 @@ export const Sidebar = ({
                     }`}
                     title={isCollapsed ? item.label : undefined}
                   >
-                    {/* Active vertical accent bar */}
                     {isActive && (
                       <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-orange-500" />
                     )}
@@ -108,12 +103,14 @@ export const Sidebar = ({
         })}
       </div>
 
-      {/* Footer area */}
+      {/* Footer Area with active role info */}
       {!isCollapsed && (
         <div className="p-3 border-t border-slate-100 bg-slate-50/50 shrink-0">
-          <div className="flex items-center gap-2.5 px-2 py-1.5">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] text-slate-500 font-medium">HRMS v1.0 • Part 01</span>
+          <div className="flex items-center gap-2 px-2 py-1">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span className="text-[11px] text-slate-600 font-semibold truncate">
+              {currentRole || 'Guest'}
+            </span>
           </div>
         </div>
       )}
@@ -122,7 +119,6 @@ export const Sidebar = ({
 
   return (
     <>
-      {/* Desktop Sidebar (Fixed width / Collapsed transition) */}
       <aside
         className={`hidden md:block h-screen sticky top-0 transition-all duration-300 ease-in-out z-20 ${
           isCollapsed ? 'w-16' : 'w-64'
@@ -131,7 +127,6 @@ export const Sidebar = ({
         {sidebarContent}
       </aside>
 
-      {/* Mobile Sidebar Drawer Overlay */}
       {isMobileOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div

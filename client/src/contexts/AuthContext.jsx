@@ -1,63 +1,108 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
-import { MOCK_CURRENT_USER } from '../mocks/authData';
+import {
+  ROLE_PERMISSIONS,
+  hasPermission as checkHasPermission,
+} from '../config/permissions';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(MOCK_CURRENT_USER);
-  const [currentRole, setCurrentRole] = useState(MOCK_CURRENT_USER.role);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [currentRole, setCurrentRole] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Initialize session state on startup from localStorage
   useEffect(() => {
-    // Initial sync
-    setLoading(true);
-    authService.getCurrentUser().then((userData) => {
-      setUser(userData);
-      setCurrentRole(userData.role);
-      setLoading(false);
-    });
+    let isMounted = true;
+    authService
+      .getCurrentSession()
+      .then((session) => {
+        if (isMounted) {
+          if (session && session.user) {
+            setUser(session.user);
+            setCurrentRole(session.user.role);
+            setIsAuthenticated(true);
+          } else {
+            setUser(null);
+            setCurrentRole(null);
+            setIsAuthenticated(false);
+          }
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setUser(null);
+          setCurrentRole(null);
+          setIsAuthenticated(false);
+          setIsLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = async (email, password) => {
-    setLoading(true);
+    setIsLoading(true);
     const res = await authService.login(email, password);
     if (res.success) {
       setUser(res.user);
       setCurrentRole(res.user.role);
       setIsAuthenticated(true);
     }
-    setLoading(false);
+    setIsLoading(false);
     return res;
   };
 
   const logout = async () => {
-    setLoading(true);
+    setIsLoading(true);
     await authService.logout();
     setIsAuthenticated(false);
     setUser(null);
-    setLoading(false);
+    setCurrentRole(null);
+    setIsLoading(false);
   };
 
   const switchRole = (newRole) => {
     setCurrentRole(newRole);
     if (user) {
-      setUser({ ...user, role: newRole });
+      const updatedUser = { ...user, role: newRole };
+      setUser(updatedUser);
+      authService.updateProfile({ role: newRole });
     }
   };
+
+  const hasPermission = (permissionKey) => {
+    if (!currentRole) return false;
+    return checkHasPermission(currentRole, permissionKey);
+  };
+
+  const hasRole = (allowedRoles = []) => {
+    if (!currentRole) return false;
+    if (allowedRoles.length === 0) return true;
+    return allowedRoles.includes(currentRole);
+  };
+
+  const activePermissions = currentRole ? ROLE_PERMISSIONS[currentRole] || [] : [];
 
   return (
     <AuthContext.Provider
       value={{
         user,
         currentUser: user,
+        role: currentRole,
         currentRole,
+        permissions: activePermissions,
         isAuthenticated,
-        loading,
+        isLoading,
         login,
         logout,
         switchRole,
+        hasPermission,
+        hasRole,
       }}
     >
       {children}

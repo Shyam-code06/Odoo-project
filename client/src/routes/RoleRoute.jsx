@@ -1,22 +1,21 @@
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { hasRolePermission } from '../config/permissions';
-import { ErrorState } from '../components/ui/ErrorState';
 
-export const RoleRoute = ({ allowedRoles, children }) => {
-  const { currentRole } = useAuth();
+export const RoleRoute = ({ allowedRoles, requiredPermission, children }) => {
+  const { currentRole, hasPermission } = useAuth();
 
-  const isAuthorized = hasRolePermission(currentRole, allowedRoles);
+  let isAuthorized = true;
+
+  if (requiredPermission) {
+    isAuthorized = hasPermission(requiredPermission);
+  } else if (allowedRoles && allowedRoles.length > 0) {
+    isAuthorized = hasRolePermission(currentRole, allowedRoles);
+  }
 
   if (!isAuthorized) {
-    return (
-      <div className="py-12">
-        <ErrorState
-          title="Access Restricted"
-          description={`Your current role (${currentRole}) does not have permission to view this section.`}
-        />
-      </div>
-    );
+    return <Navigate to="/unauthorized" replace />;
   }
 
   return children;
