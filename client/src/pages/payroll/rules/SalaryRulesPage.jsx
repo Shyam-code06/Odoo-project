@@ -66,8 +66,8 @@ export default function SalaryRulesPage() {
   }, [structureIdParam]);
 
   const { items, total, page, pageSize, totalPages, metrics = {}, loading, error, refetch } = useSalaryRules(queryParams);
-  const { items: structures } = useSalaryStructures({ pageSize: 100 });
-  const { categories } = useSalaryCategories();
+  const { items: structures = [] } = useSalaryStructures({ pageSize: 100 });
+  const { categories = [] } = useSalaryCategories();
 
   const [ruleToDelete, setRuleToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -232,7 +232,7 @@ export default function SalaryRulesPage() {
               onChange={(e) => handleFilterChange('salaryStructureId', e.target.value)}
               options={[
                 { value: '', label: 'All Structures' },
-                ...structures.map((s) => ({ value: s.id, label: `${s.name} (${s.code})` })),
+                ...(structures || []).map((s) => ({ value: s.id, label: `${s.name} (${s.code})` })),
               ]}
               className="text-sm"
             />
@@ -245,7 +245,7 @@ export default function SalaryRulesPage() {
               onChange={(e) => handleFilterChange('categoryId', e.target.value)}
               options={[
                 { value: '', label: 'All Categories' },
-                ...categories.map((c) => ({ value: c.id, label: c.name })),
+                ...(categories || []).map((c) => ({ value: c.id, label: c.name })),
               ]}
               className="text-sm"
             />
@@ -273,13 +273,13 @@ export default function SalaryRulesPage() {
               <span className="text-slate-400 font-medium">Active Filters:</span>
               {queryParams.salaryStructureId && (
                 <Badge variant="secondary" className="gap-1 bg-slate-100 text-slate-700">
-                  Structure: {structures.find((s) => s.id === queryParams.salaryStructureId)?.code || queryParams.salaryStructureId}
+                  Structure: {(structures || []).find((s) => s.id === queryParams.salaryStructureId)?.code || queryParams.salaryStructureId}
                   <X className="w-3 h-3 cursor-pointer" onClick={() => handleFilterChange('salaryStructureId', '')} />
                 </Badge>
               )}
               {queryParams.categoryId && (
                 <Badge variant="secondary" className="gap-1 bg-slate-100 text-slate-700">
-                  Category: {categories.find((c) => c.id === queryParams.categoryId)?.name || queryParams.categoryId}
+                  Category: {(categories || []).find((c) => c.id === queryParams.categoryId)?.name || queryParams.categoryId}
                   <X className="w-3 h-3 cursor-pointer" onClick={() => handleFilterChange('categoryId', '')} />
                 </Badge>
               )}

@@ -36,8 +36,8 @@ export default function SalaryRuleFormPage() {
   const defaultStructureId = searchParams.get('salaryStructureId') || '';
   const canManage = hasPermission(isEdit ? PERMISSIONS.SALARY_RULES_EDIT : PERMISSIONS.SALARY_RULES_CREATE);
 
-  const { items: structures } = useSalaryStructures({ pageSize: 100 });
-  const { categories } = useSalaryCategories();
+  const { items: structures = [] } = useSalaryStructures({ pageSize: 100 });
+  const { categories = [] } = useSalaryCategories();
 
   const [formData, setFormData] = useState({
     salaryStructureId: defaultStructureId,
@@ -209,7 +209,7 @@ export default function SalaryRuleFormPage() {
                 onChange={(e) => setFormData((prev) => ({ ...prev, salaryStructureId: e.target.value }))}
                 options={[
                   { value: '', label: 'Select Salary Structure' },
-                  ...structures.map((s) => ({ value: s.id, label: `${s.name} (${s.code})` })),
+                  ...(structures || []).map((s) => ({ value: s.id, label: `${s.name} (${s.code})` })),
                 ]}
                 error={errors.salaryStructureId}
               />
@@ -224,7 +224,7 @@ export default function SalaryRuleFormPage() {
                 onChange={(e) => setFormData((prev) => ({ ...prev, categoryId: e.target.value }))}
                 options={[
                   { value: '', label: 'Select Category' },
-                  ...categories.map((c) => ({ value: c.id, label: c.name })),
+                  ...(categories || []).map((c) => ({ value: c.id, label: c.name })),
                 ]}
                 error={errors.categoryId}
               />

@@ -68,3 +68,9 @@ export const formatTimeAgo = (timestamp) => {
   const days = Math.floor(diffInSeconds / 86400);
   return `${days} day${days > 1 ? 's' : ''} ago`;
 };
+
+// Format Payroll Period Range (e.g., "01 Sep 2026 - 30 Sep 2026")
+export const formatPayrollPeriod = (startDate, endDate) => {
+  if (!startDate || !endDate) return '—';
+  return `${formatDate(startDate)} - ${formatDate(endDate)}`;
+};

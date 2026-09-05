@@ -57,6 +57,13 @@ import SalaryRuleDetailsPage from '../pages/payroll/rules/SalaryRuleDetailsPage'
 import SalaryRuleFormPage from '../pages/payroll/rules/SalaryRuleFormPage';
 import SalaryRuleCategoriesPage from '../pages/payroll/categories/SalaryRuleCategoriesPage';
 
+import PayrunsPage from '../pages/payroll/payruns/PayrunsPage';
+import PayrunWizardPage from '../pages/payroll/payruns/PayrunWizardPage';
+import PayrunProcessingPage from '../pages/payroll/payruns/PayrunProcessingPage';
+
+import PayslipListPage from '../pages/payroll/payslips/PayslipListPage';
+import PayslipDetailsPage from '../pages/payroll/payslips/PayslipDetailsPage';
+
 import { PERMISSIONS, ROLES } from '../config/permissions';
 
 export const AppRoutes = () => {
@@ -122,7 +129,7 @@ export const AppRoutes = () => {
             path="/my-payslips"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.MY_PAYSLIPS_VIEW}>
-                <PlaceholderPage title="My Payslips" description="View and download your monthly payroll slips." part="11" iconName="FileSpreadsheet" />
+                <PayslipListPage isSelfService={true} />
               </RoleRoute>
             }
           />
@@ -445,18 +452,68 @@ export const AppRoutes = () => {
           />
 
           {/* Payroll Routes (Parts 09, 10, 11) */}
-          <Route path="/payroll" element={<RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}><PlaceholderPage title="Payroll Overview" part="09" iconName="CircleDollarSign" /></RoleRoute>} />
-          <Route path="/payroll/payruns" element={<RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}><PlaceholderPage title="Payruns" part="10" iconName="Receipt" /></RoleRoute>} />
-          <Route path="/payroll/payruns/new" element={<RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_CREATE}><PlaceholderPage title="Create New Payrun" part="10" iconName="Plus" /></RoleRoute>} />
-          <Route path="/payroll/payruns/:id" element={<RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}><PlaceholderPage title="Payrun Details" part="10" iconName="Receipt" /></RoleRoute>} />
-          <Route path="/payroll/payruns/:id/employees" element={<RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}><PlaceholderPage title="Payrun Employee List" part="10" iconName="Users" /></RoleRoute>} />
+          <Route path="/payroll" element={<RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}><PayrunsPage /></RoleRoute>} />
+          <Route
+            path="/payroll/payruns"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}>
+                <PayrunsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/payruns/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_CREATE}>
+                <PayrunWizardPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/payruns/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}>
+                <PayrunProcessingPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/payruns/:id/employees"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}>
+                <PayrunProcessingPage />
+              </RoleRoute>
+            }
+          />
 
-          <Route path="/payroll/payslips" element={<RoleRoute requiredPermission={PERMISSIONS.PAYSLIPS_VIEW}><PlaceholderPage title="Payslips Directory" part="11" iconName="FileSpreadsheet" /></RoleRoute>} />
-          <Route path="/payroll/payslips/:id" element={<RoleRoute requiredPermission={PERMISSIONS.PAYSLIPS_VIEW}><PlaceholderPage title="Payslip Detail" part="11" iconName="FileSpreadsheet" /></RoleRoute>} />
+          <Route
+            path="/payroll/payslips"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.PAYSLIPS_VIEW}>
+                <PayslipListPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/payslips/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.PAYSLIPS_VIEW}>
+                <PayslipDetailsPage />
+              </RoleRoute>
+            }
+          />
 
           {/* Salary Structures (Part 09) */}
           <Route
             path="/payroll/salary-structures"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_VIEW}>
+                <SalaryStructuresPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/structures"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_VIEW}>
                 <SalaryStructuresPage />
@@ -472,6 +529,14 @@ export const AppRoutes = () => {
             }
           />
           <Route
+            path="/payroll/structures/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_CREATE}>
+                <SalaryStructureFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
             path="/payroll/salary-structures/:id"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_VIEW}>
@@ -480,7 +545,23 @@ export const AppRoutes = () => {
             }
           />
           <Route
+            path="/payroll/structures/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_VIEW}>
+                <SalaryStructureDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
             path="/payroll/salary-structures/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_EDIT}>
+                <SalaryStructureFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/structures/:id/edit"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_EDIT}>
                 <SalaryStructureFormPage />
@@ -498,7 +579,23 @@ export const AppRoutes = () => {
             }
           />
           <Route
+            path="/payroll/rules"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_VIEW}>
+                <SalaryRulesPage />
+              </RoleRoute>
+            }
+          />
+          <Route
             path="/payroll/salary-rules/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_CREATE}>
+                <SalaryRuleFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/rules/new"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_CREATE}>
                 <SalaryRuleFormPage />
@@ -514,7 +611,23 @@ export const AppRoutes = () => {
             }
           />
           <Route
+            path="/payroll/rules/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_VIEW}>
+                <SalaryRuleDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
             path="/payroll/salary-rules/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_EDIT}>
+                <SalaryRuleFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/rules/:id/edit"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_EDIT}>
                 <SalaryRuleFormPage />
@@ -524,6 +637,38 @@ export const AppRoutes = () => {
           {/* Salary Rule Categories (Part 09) */}
           <Route
             path="/payroll/salary-rule-categories"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULE_CATEGORIES_VIEW}>
+                <SalaryRuleCategoriesPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/rule-categories"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULE_CATEGORIES_VIEW}>
+                <SalaryRuleCategoriesPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/categories"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULE_CATEGORIES_VIEW}>
+                <SalaryRuleCategoriesPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/salary-categories"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULE_CATEGORIES_VIEW}>
+                <SalaryRuleCategoriesPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/rules/categories"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULE_CATEGORIES_VIEW}>
                 <SalaryRuleCategoriesPage />

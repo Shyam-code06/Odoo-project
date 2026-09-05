@@ -123,16 +123,17 @@ export function useSalaryRule(id) {
   return { rule, loading, error, refetch: fetchRule };
 }
 
-export function useSalaryCategories() {
+export function useSalaryCategories(params = {}) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadCategories() {
       try {
-        const res = await salaryService.getSalaryRuleCategories();
+        const res = await salaryService.getSalaryRuleCategories(params);
         if (res.success) {
-          setCategories(res.data);
+          const list = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+          setCategories(list);
         }
       } catch (err) {
         console.error('Failed to load salary rule categories', err);
@@ -141,9 +142,9 @@ export function useSalaryCategories() {
       }
     }
     loadCategories();
-  }, []);
+  }, [JSON.stringify(params)]);
 
-  return { categories, loading };
+  return { categories: Array.isArray(categories) ? categories : [], loading };
 }
 
 export function useStructureCalculation(structureId, baseSalary = 50000) {
