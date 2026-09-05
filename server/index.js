@@ -58,7 +58,6 @@ app.use(notFoundHandler);
 
 // Global error handler
 app.use(errorHandler);
-
 const isMainModule = process.argv[1] && (process.argv[1].endsWith('index.js') || process.argv[1].endsWith('server.js'));
 
 if (isMainModule && process.env.NODE_ENV !== 'test') {

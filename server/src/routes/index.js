@@ -12,6 +12,8 @@ import attendanceRoutes from './attendanceRoutes.js';
 import timeOffRoutes from './timeOffRoutes.js';
 import salaryStructureRoutes from './salaryStructureRoutes.js';
 import salaryRuleRoutes from './salaryRuleRoutes.js';
+import payrollRoutes from './payrollRoutes.js';
+import payrunRoutes from './payrunRoutes.js';
 
 const router = Router();
 
@@ -43,5 +45,11 @@ router.use('/time-off', timeOffRoutes);
 // Phase 8: Salary Configuration routes
 router.use('/salary-structures', salaryStructureRoutes);
 router.use('/salary-rules', salaryRuleRoutes);
+
+// Phase 9: Payroll Calculation Engine routes
+router.use('/payroll', payrollRoutes);
+
+// Phase 10: Payrun Management routes
+router.use('/payruns', payrunRoutes);
 
 export default router;

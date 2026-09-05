@@ -12,6 +12,8 @@
     "test:employees": "node test-employees.js",
     "test:phase5": "node test-phase5.js",
     "test:phase6": "node test-phase6.js",
+    "test:phase9": "node test-phase9.js",
+    "test:phase10": "node test-phase10.js",
     "seed:rbac": "node -e \"import('./src/config/seedRbac.js').then(m => m.seedRbac().then(() => process.exit(0)))\""
   },
   "dependencies": {
