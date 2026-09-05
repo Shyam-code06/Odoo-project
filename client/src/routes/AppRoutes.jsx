@@ -48,6 +48,15 @@ import { TimeOffRequestsPage } from '../pages/timeOff/requests/TimeOffRequestsPa
 import { TimeOffRequestDetailsPage } from '../pages/timeOff/requests/TimeOffRequestDetailsPage';
 import { TimeOffRequestFormPage } from '../pages/timeOff/requests/TimeOffRequestFormPage';
 
+import SalaryStructuresPage from '../pages/payroll/structures/SalaryStructuresPage';
+import SalaryStructureDetailsPage from '../pages/payroll/structures/SalaryStructureDetailsPage';
+import SalaryStructureFormPage from '../pages/payroll/structures/SalaryStructureFormPage';
+
+import SalaryRulesPage from '../pages/payroll/rules/SalaryRulesPage';
+import SalaryRuleDetailsPage from '../pages/payroll/rules/SalaryRuleDetailsPage';
+import SalaryRuleFormPage from '../pages/payroll/rules/SalaryRuleFormPage';
+import SalaryRuleCategoriesPage from '../pages/payroll/categories/SalaryRuleCategoriesPage';
+
 import { PERMISSIONS, ROLES } from '../config/permissions';
 
 export const AppRoutes = () => {
@@ -445,9 +454,82 @@ export const AppRoutes = () => {
           <Route path="/payroll/payslips" element={<RoleRoute requiredPermission={PERMISSIONS.PAYSLIPS_VIEW}><PlaceholderPage title="Payslips Directory" part="11" iconName="FileSpreadsheet" /></RoleRoute>} />
           <Route path="/payroll/payslips/:id" element={<RoleRoute requiredPermission={PERMISSIONS.PAYSLIPS_VIEW}><PlaceholderPage title="Payslip Detail" part="11" iconName="FileSpreadsheet" /></RoleRoute>} />
 
-          <Route path="/payroll/salary-structures" element={<RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_VIEW}><PlaceholderPage title="Salary Structures" part="09" iconName="Layers" /></RoleRoute>} />
-          <Route path="/payroll/salary-rules" element={<RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_VIEW}><PlaceholderPage title="Salary Rules" part="09" iconName="Sliders" /></RoleRoute>} />
-          <Route path="/payroll/salary-rule-categories" element={<RoleRoute requiredPermission={PERMISSIONS.SALARY_RULE_CATEGORIES_VIEW}><PlaceholderPage title="Salary Rule Categories" part="09" iconName="FolderKanban" /></RoleRoute>} />
+          {/* Salary Structures (Part 09) */}
+          <Route
+            path="/payroll/salary-structures"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_VIEW}>
+                <SalaryStructuresPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/salary-structures/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_CREATE}>
+                <SalaryStructureFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/salary-structures/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_VIEW}>
+                <SalaryStructureDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/salary-structures/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_STRUCTURES_EDIT}>
+                <SalaryStructureFormPage />
+              </RoleRoute>
+            }
+          />
+
+          {/* Salary Rules (Part 09) */}
+          <Route
+            path="/payroll/salary-rules"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_VIEW}>
+                <SalaryRulesPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/salary-rules/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_CREATE}>
+                <SalaryRuleFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/salary-rules/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_VIEW}>
+                <SalaryRuleDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/payroll/salary-rules/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULES_EDIT}>
+                <SalaryRuleFormPage />
+              </RoleRoute>
+            }
+          />
+          {/* Salary Rule Categories (Part 09) */}
+          <Route
+            path="/payroll/salary-rule-categories"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.SALARY_RULE_CATEGORIES_VIEW}>
+                <SalaryRuleCategoriesPage />
+              </RoleRoute>
+            }
+          />
 
           {/* Reports Routes (Part 12) */}
           <Route path="/reports" element={<RoleRoute requiredPermission={PERMISSIONS.REPORTS_VIEW}><PlaceholderPage title="HR Analytics & Reports" part="12" iconName="BarChart3" /></RoleRoute>} />
