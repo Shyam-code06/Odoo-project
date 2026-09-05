@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { employeeService } from '../services/employeeService';
 
 export const useEmployees = (initialParams = {}) => {
+  const [searchParams] = useSearchParams();
+  const initDept = searchParams.get('department_id') || searchParams.get('departmentId') || '';
+  const initPos = searchParams.get('job_position_id') || searchParams.get('jobPositionId') || '';
+  const initMgr = searchParams.get('manager_id') || searchParams.get('managerId') || '';
+  const initStatus = searchParams.get('employment_status') || searchParams.get('status') || '';
+  const initSched = searchParams.get('working_schedule_id') || searchParams.get('workingScheduleId') || '';
+
   const [employees, setEmployees] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -10,11 +18,11 @@ export const useEmployees = (initialParams = {}) => {
 
   const [params, setParams] = useState({
     search: '',
-    department_id: '',
-    job_position_id: '',
-    manager_id: '',
-    employment_status: '',
-    working_schedule_id: '',
+    department_id: initDept,
+    job_position_id: initPos,
+    manager_id: initMgr,
+    employment_status: initStatus,
+    working_schedule_id: initSched,
     page: 1,
     pageSize: 10,
     sortBy: 'joining_date',

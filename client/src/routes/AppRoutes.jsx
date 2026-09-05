@@ -20,6 +20,14 @@ import { EmployeeListPage } from '../pages/employees/EmployeeListPage';
 import { EmployeeDetailsPage } from '../pages/employees/EmployeeDetailsPage';
 import { EmployeeFormPage } from '../pages/employees/EmployeeFormPage';
 
+import { DepartmentListPage } from '../pages/departments/DepartmentListPage';
+import { DepartmentDetailsPage } from '../pages/departments/DepartmentDetailsPage';
+import { DepartmentFormPage } from '../pages/departments/DepartmentFormPage';
+
+import { JobPositionListPage } from '../pages/jobPositions/JobPositionListPage';
+import { JobPositionDetailsPage } from '../pages/jobPositions/JobPositionDetailsPage';
+import { JobPositionFormPage } from '../pages/jobPositions/JobPositionFormPage';
+
 import { PERMISSIONS, ROLES } from '../config/permissions';
 
 export const AppRoutes = () => {
@@ -137,23 +145,67 @@ export const AppRoutes = () => {
             path="/departments"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.DEPARTMENTS_VIEW}>
-                <PlaceholderPage title="Departments" description="Configure company departments and structural hierarchy." part="05" iconName="Building2" />
+                <DepartmentListPage />
               </RoleRoute>
             }
           />
-          <Route path="/departments/new" element={<RoleRoute requiredPermission={PERMISSIONS.DEPARTMENTS_CREATE}><PlaceholderPage title="New Department" part="05" iconName="Plus" /></RoleRoute>} />
-          <Route path="/departments/:id" element={<RoleRoute requiredPermission={PERMISSIONS.DEPARTMENTS_VIEW}><PlaceholderPage title="Department Details" part="05" iconName="Building2" /></RoleRoute>} />
+          <Route
+            path="/departments/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.DEPARTMENTS_CREATE}>
+                <DepartmentFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/departments/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.DEPARTMENTS_VIEW}>
+                <DepartmentDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/departments/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.DEPARTMENTS_EDIT}>
+                <DepartmentFormPage />
+              </RoleRoute>
+            }
+          />
 
           <Route
             path="/job-positions"
             element={
               <RoleRoute requiredPermission={PERMISSIONS.JOB_POSITIONS_VIEW}>
-                <PlaceholderPage title="Job Positions" description="Manage job titles, pay grades and position roles." part="05" iconName="Briefcase" />
+                <JobPositionListPage />
               </RoleRoute>
             }
           />
-          <Route path="/job-positions/new" element={<RoleRoute requiredPermission={PERMISSIONS.JOB_POSITIONS_CREATE}><PlaceholderPage title="New Job Position" part="05" iconName="Plus" /></RoleRoute>} />
-          <Route path="/job-positions/:id" element={<RoleRoute requiredPermission={PERMISSIONS.JOB_POSITIONS_VIEW}><PlaceholderPage title="Job Position Details" part="05" iconName="Briefcase" /></RoleRoute>} />
+          <Route
+            path="/job-positions/new"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.JOB_POSITIONS_CREATE}>
+                <JobPositionFormPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/job-positions/:id"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.JOB_POSITIONS_VIEW}>
+                <JobPositionDetailsPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/job-positions/:id/edit"
+            element={
+              <RoleRoute requiredPermission={PERMISSIONS.JOB_POSITIONS_EDIT}>
+                <JobPositionFormPage />
+              </RoleRoute>
+            }
+          />
 
           {/* Workforce Routes (Parts 06, 07, 08) */}
           <Route path="/contracts" element={<RoleRoute requiredPermission={PERMISSIONS.CONTRACTS_VIEW}><PlaceholderPage title="Employment Contracts" part="06" iconName="FileText" /></RoleRoute>} />
