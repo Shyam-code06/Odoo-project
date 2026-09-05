@@ -1,11 +1,13 @@
 import { employeeService } from './employeeService';
 import { payslipAdapter } from '../adapters/payrunAdapter';
 import { validatePayslipTotals } from '../utils/payslipGrouping';
+import { apiClient } from './apiClient';
 
 /**
  * Payslip Master Service Layer
  * Manages presentation, searching, multi-filtering, sorting, integrity verification,
  * and relationship resolution for employee payslips.
+ * Integrates production HTTP API Client with automatic fallback to mock store.
  */
 
 export const payslipService = {
@@ -14,6 +16,16 @@ export const payslipService = {
   // ==========================================
 
   getPayslips: async (params = {}) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.get('/payroll/payslips', params);
+      if (apiRes && apiRes.success && apiRes.data) {
+        return apiRes;
+      }
+    } catch (err) {
+      // Backend offline / Endpoint unmapped -> fallback to mock repository
+    }
+
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawSlips = employeeService._getRawPayslips() || [];
@@ -161,6 +173,15 @@ export const payslipService = {
   // ==========================================
 
   getPayslipById: async (id) => {
+    try {
+      const apiRes = await apiClient.get(`/payroll/payslips/${id}`);
+      if (apiRes && apiRes.success && apiRes.data) {
+        return apiRes;
+      }
+    } catch (err) {
+      // Endpoint offline -> fallback to local mock repository
+    }
+
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawSlips = employeeService._getRawPayslips() || [];
