@@ -108,23 +108,22 @@ export const payrunService = {
   getPayrunById: async (id) => {
     const rawStructs = employeeService._getRawSalaryStructures() || [];
     const rawLines = employeeService._getRawPayslipLines() || [];
-    const rawEmps = employeeService._getRawEmployees() || [];
-    const rawContracts = employeeService._getRawContracts() || [];
 
-    // 1. Check local store
-    const localPayruns = employeeService._getRawPayruns() || [];
-    let rawPayrun = localPayruns.find((p) => String(p.id) === String(id));
-
-    // 2. If not found in local store or backend exists, query backend
-    if (!rawPayrun) {
-      try {
-        const apiRes = await apiClient.get(`/payruns/${id}`);
-        if (apiRes?.success && apiRes?.data) {
-          rawPayrun = apiRes.data;
-        }
-      } catch (err) {
-        console.warn(`[payrunService] Backend getPayrunById(${id}) failed:`, err.message);
+    // 1. ALWAYS query backend database first to load real payrun
+    let rawPayrun = null;
+    try {
+      const apiRes = await apiClient.get(`/payruns/${id}`);
+      if (apiRes?.success && apiRes?.data) {
+        rawPayrun = apiRes.data;
       }
+    } catch (err) {
+      console.warn(`[payrunService] Backend getPayrunById(${id}) query notice:`, err.message);
+    }
+
+    // 2. Fallback to local store only if not found in database
+    if (!rawPayrun) {
+      const localPayruns = employeeService._getRawPayruns() || [];
+      rawPayrun = localPayruns.find((p) => String(p.id) === String(id));
     }
 
     if (!rawPayrun) {
@@ -134,15 +133,36 @@ export const payrunService = {
       };
     }
 
-    const rawPEs = (employeeService._getRawPayrunEmployees() || []).filter(
+    // Load live employees & contracts from database for complete reference
+    let rawEmps = [];
+    let rawContracts = [];
+    try {
+      const [empRes, cntRes] = await Promise.all([
+        apiClient.get('/employees?limit=500'),
+        apiClient.get('/contracts?limit=500'),
+      ]);
+      if (empRes?.success && empRes?.data) {
+        rawEmps = Array.isArray(empRes.data) ? empRes.data : (empRes.data.employees || []);
+      }
+      if (cntRes?.success && cntRes?.data) {
+        rawContracts = Array.isArray(cntRes.data) ? cntRes.data : (cntRes.data.contracts || []);
+      }
+    } catch {
+      rawEmps = employeeService._getRawEmployees() || [];
+      rawContracts = employeeService._getRawContracts() || [];
+    }
+
+    // ALWAYS prefer backend employees attached to the database payrun!
+    const backendPEs = rawPayrun.employees || rawPayrun.payrun_employees || [];
+    const localPEs = (employeeService._getRawPayrunEmployees() || []).filter(
       (pe) => String(pe.payrun_id || pe.payrunId) === String(id)
     );
+    const attachedPEs = backendPEs.length > 0 ? backendPEs : localPEs;
+
     const rawSlips = (employeeService._getRawPayslips() || []).filter(
       (ps) => String(ps.payrun_id || ps.payrunId) === String(id)
     );
 
-    // If backend provided attached employee rows
-    const attachedPEs = rawPEs.length > 0 ? rawPEs : (rawPayrun.employees || rawPayrun.payrun_employees || []);
     const uiPayrun = payrunAdapter.toUIModel(rawPayrun, rawStructs, attachedPEs, rawSlips);
 
     // Map attached employees with their computed payslip details

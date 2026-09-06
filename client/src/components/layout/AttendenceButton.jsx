@@ -164,23 +164,68 @@ const AttendenceButton = () => {
   };
 
   const buttonLabel = processing
-    ? 'Saving...'
+    ? 'Saving attendance...'
+    : !todayStatus?.has_checked_in
+    ? 'Mark Attendance (Click to Check In)'
+    : !todayStatus?.has_checked_out
+    ? 'Check Out (Click to Check Out)'
+    : 'Attendance Completed for Today';
+
+  const currentEmoji = processing
+    ? '⏳'
+    : !todayStatus?.has_checked_in
+    ? '⏰'
+    : !todayStatus?.has_checked_out
+    ? '🏃'
+    : '✅';
+
+  // Dynamic styling: Red circle when absent / ready to check-in, Green circle when already checked-in, Amber when processing
+  const circleColor = processing
+    ? 'bg-amber-500 hover:bg-amber-600 ring-amber-300'
+    : !todayStatus?.has_checked_in
+    ? 'bg-red-500 hover:bg-red-600 ring-red-300'
+    : !todayStatus?.has_checked_out
+    ? 'bg-emerald-500 hover:bg-emerald-600 ring-emerald-300'
+    : 'bg-emerald-600 hover:bg-emerald-700 ring-emerald-400';
+
+  const hoverText = processing
+    ? 'Verifying Attendance...'
     : !todayStatus?.has_checked_in
     ? 'Mark Attendance'
     : !todayStatus?.has_checked_out
-    ? 'Check Out'
+    ? 'Check Out Attendance'
     : 'Attendance Completed';
 
   return (
-    <div className="p-1">
+    <div className="relative group flex items-center justify-center">
       <button
         type="button"
         disabled={processing}
-        className="px-4 py-2 rounded-lg bg-orange-500 text-white font-medium text-sm hover:bg-orange-600 transition-colors cursor-pointer disabled:opacity-60"
         onClick={handleMarkAttendance}
+        aria-label={hoverText}
+        className={`relative w-9 h-9 rounded-full ${circleColor} text-white flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-60 ring-2 ring-offset-2 ring-offset-white`}
       >
-        {buttonLabel}
+        <span className={`text-base select-none ${processing ? 'animate-spin' : ''}`}>
+          {currentEmoji}
+        </span>
+
+        {/* Small pulsing presence dot for when user has not checked in */}
+        {!todayStatus?.has_checked_in && !processing && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600 border border-white" />
+          </span>
+        )}
       </button>
+
+      {/* Floating Instant Hover Tooltip */}
+      <div className="absolute top-full mt-2.5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 transform group-hover:translate-y-0 translate-y-1 z-50 flex flex-col items-center">
+        <div className="w-2 h-2 bg-slate-900 rotate-45 -mb-1 shadow-xs" />
+        <div className="bg-slate-900 text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-xl whitespace-nowrap flex items-center gap-1.5 border border-slate-800">
+          <span className="text-xs">{currentEmoji}</span>
+          <span>{hoverText}</span>
+        </div>
+      </div>
       <AlertModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

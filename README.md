@@ -1,152 +1,116 @@
 # PeoplePay360 — HRMS & Payroll System
 
-An enterprise-grade Human Resource Management and Payroll ERP application inspired by Odoo. Built with React (Vite) on the frontend, Node.js (Express) on the backend, and MySQL.
+An enterprise Human Resource Management and Payroll ERP application built with React (Vite), Node.js (Express), and MySQL.
+
+---
+
+## 🔑 Default Login Credentials
+
+| Role | Email | Password | Description |
+| :--- | :--- | :--- | :--- |
+| **System Admin** | `admin@gmail.com` | `admin123` | Full administrative control across all modules |
+| **System Admin (Alt)** | `admin@odoo.local` | `Password123!` | Alternate admin account |
+| **Employees (Seeded)** | `aarav.sharma@odoo.local` | `123456` | All 250 seeded employee accounts use password `123456` |
 
 ---
 
 ## 🛠 Tech Stack
 
-- **Frontend**: React 18, Vite, React Router 7, Tailwind CSS, Lucide Icons
-- **Backend**: Node.js, Express.js, Knex.js, MySQL2, Nodemailer
-- **Database**: MySQL 8.0+
-- **Authentication**: JWT (Access & Refresh Tokens) with bcrypt password hashing
+- **Frontend**: React 18, Vite, React Router, Tailwind CSS, Lucide Icons
+- **Backend**: Node.js, Express.js (ES Modules), Knex.js, MySQL2, Nodemailer
+- **Database**: MySQL 8.0+ (`odoo_db`)
+- **Authentication**: JWT (Access & Refresh Tokens) with bcrypt hashing & RBAC
 
 ---
 
-## ✨ Features
+## 🚀 Quick Setup
 
-- **Authentication & RBAC**: Dual-token authentication (cookie/header) with role-based access control (Admin, HR Manager, Officer, Employee).
-- **Employee Directory**: Full employee lifecycle, profiles, department hierarchies, and job positions.
-- **Schedules & Attendance**: Weekly shift schedules, punch-in/out tracking with office GPS geofence validation and IP logging.
-- **Time Off Management**: Custom leave types, leave balance allocation, and approval workflows.
-- **Salary Rules & Structures**: Configurable salary rule categories, dynamic mathematical formulas, and contract-linked structures.
-- **Payruns & Payslips**: Batch payroll processing, automated calculations (gross, net, allowances, deductions), and PDF/email payslip delivery via Nodemailer.
-- **HR Dashboard**: Real-time stats on headcount, attendance rates, pending leaves, and payroll liability.
-
----
-
-## 📂 Project Structure
-
-```
-Odoo-project/
-├── client/          # React + Vite frontend
-├── server/          # Express + Knex REST API backend
-├── database.sql     # Database schema and initial seeds
-├── package.json     # Root orchestration scripts
-├── .gitignore       # Git ignore rules (protects .env & secrets)
-└── README.md        # Project documentation
-```
-
----
-
-## 🚀 Quick Start
-
-### 1. Prerequisites
-- **Node.js** (v18+)
-- **MySQL Server** (v8.0+)
-
-### 2. Database Setup
-Import the database schema into your local MySQL server:
+### 1. Database Setup
+Import the database schema into MySQL:
 ```bash
 mysql -u root -p < database.sql
 ```
-This creates the `odoo_db` database and its tables.
 
-### 3. Environment Configuration
-Create a `.env` file in the `server` folder by copying the example:
-
-```bash
-# Windows
-copy server\.env.example server\.env
-
-# macOS / Linux
-cp server/.env.example server/.env
-```
-
-Update `server/.env` with your database credentials and secrets:
+### 2. Environment Configuration
+Create `server/.env`:
 ```env
 PORT=5000
 NODE_ENV=development
+CLIENT_URL=http://localhost:5173
 
-# MySQL Database
+# MySQL Connection
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_USER=root
-DB_PASSWORD=your_mysql_password
+DB_PASSWORD=your_password
 DB_NAME=odoo_db
 
-# JWT Secrets (min 32 characters)
-JWT_ACCESS_SECRET=your_jwt_access_secret_key_min_32_chars
-JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_SECRET=your_jwt_refresh_secret_key_min_32_chars
+# JWT Secrets
+JWT_ACCESS_SECRET=your_jwt_access_secret_key_32_chars!
+JWT_ACCESS_EXPIRES_IN=24h
+JWT_REFRESH_SECRET=your_jwt_refresh_secret_key_32_chars!
 JWT_REFRESH_EXPIRES_IN=7d
 
-# Office Geofence (Latitude, Longitude, Radius in meters)
-OFFICE_LATITUDE=28.613939
-OFFICE_LONGITUDE=77.209021
+# Geofence (Office GPS Coordinates & Allowed Radius in meters)
+OFFICE_LATITUDE=23.1895
+OFFICE_LONGITUDE=72.6288
 OFFICE_ALLOWED_RADIUS_METERS=500
-
-# Mail Configuration (Optional - for payslip delivery)
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USER=your_email@gmail.com
-MAIL_PASSWORD=your_email_password
-MAIL_FROM="PeoplePay360 Payroll <payroll@peoplepay360.com>"
 ```
 
-### 4. Install Dependencies
+### 3. Install Dependencies
 ```bash
-# Install client and server dependencies
+# In client directory:
 cd client && npm install
+
+# In server directory:
 cd ../server && npm install
-cd ..
 ```
 
-### 5. Seed Roles & Permissions
+### 4. Seed 250 Employees & Full Database Data
+Populates 250 Indian employees, contracts, leave allocations, portal users, and sample payroll:
 ```bash
 cd server
-npm run seed:rbac
-cd ..
+npm run seed
 ```
 
 ---
 
-## 💻 Running the App
+## 💻 Running the Application
 
-Run both services from the root folder in separate terminals:
-
-**Backend Server (Runs on port 5000):**
-```bash
-npm run dev:server
-```
-
-**Frontend Client (Runs on port 5173):**
-```bash
-npm run dev:client
-```
-
----
-
-## 🧪 Testing
-
-Run automated backend tests from the `server` directory:
+Start backend and frontend in separate terminals:
 
 ```bash
+# Terminal 1: Backend Server (Port 5000)
 cd server
-npm run test:auth          # Authentication tests
-npm run test:rbac          # RBAC & permissions tests
-npm run test:master-data   # Departments, Job Positions tests
-npm run test:employees     # Employee management tests
-npm run test:phase5        # Schedules & contracts tests
-npm run test:phase6        # Attendance & geofencing tests
-npm run test:phase9        # Salary calculation engine tests
-npm run test:phase10       # Payrun batch tests
-npm run test:phase11       # Payslip generation tests
-npm run test:phase12       # Dashboard & reporting tests
+npm run dev
+
+# Terminal 2: Frontend Client (Port 5173)
+cd client
+npm run dev
 ```
+
+Open your browser at **http://localhost:5173** and log in with `admin@gmail.com` / `admin123`.
 
 ---
 
-## 📄 License
+## 📦 Core Modules
 
-This project is licensed under the [MIT License](LICENSE).
+- **Employee Directory**: Profile management, department hierarchy, and job positions.
+- **Contracts**: Salary structure mapping, wage tiers, and contract validity periods.
+- **On-Site Attendance**: Geofence GPS check-in/out verification with interactive systray button.
+- **Time Off & Leaves**: Leave allocation quotas, balance tracking, and approval workflow.
+- **Payroll & Payslips**: Batch payruns, dynamic rule evaluation (Basic, HRA, PF, PT, Net Salary), and PDF export.
+
+---
+
+## 🧪 Automated Tests
+Run backend test suites from `server/`:
+```bash
+npm run test:auth          # Auth & JWT tests
+npm run test:rbac          # Roles & permissions
+npm run test:employees     # Employee lifecycle
+npm run test:phase5        # Contracts & schedules
+npm run test:phase6        # Attendance & geofencing
+npm run test:phase9        # Salary calculation engine
+npm run test:phase10       # Batch payruns
+```

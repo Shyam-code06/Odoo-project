@@ -16,7 +16,8 @@
     "test:phase10": "node test-phase10.js",
     "test:phase11": "node test-phase11.js",
     "test:phase12": "node test-phase12.js",
-    "seed:rbac": "node -e \"import('./src/config/seedRbac.js').then(m => m.seedRbac().then(() => process.exit(0)))\""
+    "seed:rbac": "node -e \"import('./src/config/seedRbac.js').then(m => m.seedRbac().then(() => process.exit(0)))\"",
+    "seed": "node seed.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

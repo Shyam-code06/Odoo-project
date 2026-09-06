@@ -419,6 +419,10 @@ export class PayrunService {
         "job_positions.id",
       )
       .leftJoin("contracts", "payrun_employees.contract_id", "contracts.id")
+      .leftJoin("payslips", function () {
+        this.on("payslips.payrun_id", "=", "payrun_employees.payrun_id")
+          .andOn("payslips.employee_id", "=", "payrun_employees.employee_id");
+      })
       .where("payrun_employees.payrun_id", id)
       .select(
         "payrun_employees.*",
@@ -430,6 +434,11 @@ export class PayrunService {
         "job_positions.title as job_position_title",
         "contracts.contract_number",
         "contracts.wage",
+        "payslips.id as payslip_id",
+        "payslips.gross_salary",
+        "payslips.total_deductions",
+        "payslips.net_salary",
+        "payslips.status as payslip_status",
       )
       .orderBy("payrun_employees.id", "asc");
 

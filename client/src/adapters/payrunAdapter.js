@@ -81,35 +81,58 @@ export const payrunEmployeeAdapter = {
         (String(c.employee_id) === String(pe.employee_id || pe.employeeId) && String(c.status).toLowerCase() === 'active')
     );
 
+    // Resolve employee object from lookup or directly from attached database row
+    const empFullName = emp
+      ? (`${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.fullName || emp.name)
+      : (`${pe.first_name || ''} ${pe.last_name || ''}`.trim() || pe.employee_name || pe.fullName);
+
+    const empCode = emp?.employee_code || pe.employee_code || pe.employeeCode || '';
+    const deptName = emp?.departmentName || emp?.department_name || pe.department_name || pe.departmentName || 'Engineering';
+    const jobTitle = emp?.jobPositionTitle || emp?.job_position_title || pe.job_position_title || pe.jobPositionTitle || 'Employee';
+
     return {
       id: pe.id,
       payrunId: pe.payrun_id || pe.payrunId,
       employeeId: pe.employee_id || pe.employeeId,
-      employee: emp
-        ? {
-            id: emp.id,
-            fullName: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.fullName || 'Employee',
-            employee_code: emp.employee_code || '',
-            departmentName: emp.departmentName || 'Engineering',
-            jobPositionTitle: emp.jobPositionTitle || 'Software Engineer',
-            avatar: emp.avatar || '',
-          }
-        : { id: pe.employee_id, fullName: 'Unknown Employee', employee_code: '' },
+      employee: {
+        id: pe.employee_id || pe.employeeId || emp?.id,
+        fullName: empFullName || (empCode ? `Employee (${empCode})` : 'Employee'),
+        employee_code: empCode,
+        departmentName: deptName,
+        jobPositionTitle: jobTitle,
+        avatar: emp?.avatar || '',
+      },
       contractId: pe.contract_id || pe.contractId,
       contract: contract
         ? {
             id: contract.id,
-            contract_code: contract.contract_code || contract.code || 'CON',
-            wage: Number(contract.wage || 0),
-            employment_type: contract.employment_type || 'Full-time',
-            start_date: contract.start_date,
-            end_date: contract.end_date,
+            contract_code: contract.contract_number || contract.contract_code || contract.code || 'CON',
+            wage: Number(contract.wage || pe.wage || 0),
+            employment_type: contract.employment_type || pe.employment_type || 'Full-time',
+            start_date: contract.start_date || pe.start_date,
+            end_date: contract.end_date || pe.end_date,
             has_bank_details: contract.has_bank_details ?? true,
+          }
+        : (pe.contract_number || pe.wage || pe.contract_id)
+        ? {
+            id: pe.contract_id || pe.contractId,
+            contract_code: pe.contract_number || pe.contractCode || 'CON',
+            wage: Number(pe.wage || 0),
+            employment_type: pe.employment_type || 'Full-time',
+            start_date: pe.contract_start_date || pe.start_date,
+            end_date: pe.contract_end_date || pe.end_date,
+            has_bank_details: true,
           }
         : null,
       status: (pe.status || 'pending').toLowerCase(),
       errorMessage: pe.error_message || pe.errorMessage || null,
-      payslip: payslip || null,
+      payslip: payslip || (pe.gross_salary !== undefined && pe.gross_salary !== null ? {
+        id: pe.payslip_id,
+        grossSalary: Number(pe.gross_salary || 0),
+        totalDeductions: Number(pe.total_deductions || 0),
+        netSalary: Number(pe.net_salary || 0),
+        status: pe.payslip_status || pe.status || 'computed',
+      } : null),
     };
   },
 };
