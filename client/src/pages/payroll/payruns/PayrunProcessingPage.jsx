@@ -36,7 +36,8 @@ export default function PayrunProcessingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
-  const { toast } = useToast();
+  const toastContext = useToast();
+  const toast = toastContext?.toast || toastContext || {};
 
   const canCompute = hasPermission(PERMISSIONS.PAYRUNS_COMPUTE);
   const canValidate = hasPermission(PERMISSIONS.PAYRUNS_VALIDATE);

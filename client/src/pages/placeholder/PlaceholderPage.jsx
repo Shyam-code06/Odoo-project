@@ -10,6 +10,7 @@ export const PlaceholderPage = ({
   description = 'Manage and configure your organization workforce data.',
   part = '04',
   iconName = 'Layers',
+  action = null,
 }) => {
   const IconComponent = Icons[iconName] || Icons.Layers;
 
@@ -18,11 +19,7 @@ export const PlaceholderPage = ({
       <PageHeader
         title={title}
         description={description}
-        action={
-          <Button variant="outline" isDisabled leftIcon={Icons.Lock}>
-            Actions Locked
-          </Button>
-        }
+        action={action}
       />
 
       <Card className="text-center py-12">

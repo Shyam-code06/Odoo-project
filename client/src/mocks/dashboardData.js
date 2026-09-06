@@ -224,7 +224,7 @@ export const MOCK_QUICK_ACTIONS_BY_ROLE = {
     { id: 'qa_1', label: 'Add Employee', route: '/employees/new', iconName: 'UserPlus', permission: PERMISSIONS.EMPLOYEES_CREATE },
     { id: 'qa_2', label: 'Review Time Off', route: '/time-off/requests', iconName: 'CheckSquare', permission: PERMISSIONS.TIME_OFF_VIEW },
     { id: 'qa_3', label: 'View Attendance', route: '/attendance', iconName: 'Clock', permission: PERMISSIONS.ATTENDANCE_VIEW },
-    { id: 'qa_4', label: 'View Reports', route: '/reports', iconName: 'BarChart3', permission: PERMISSIONS.REPORTS_VIEW },
+    { id: 'qa_4', label: 'View Contracts', route: '/contracts', iconName: 'FileText', permission: PERMISSIONS.CONTRACTS_VIEW },
   ],
   [ROLES.HR_PAYROLL_USER]: [
     { id: 'qa_1', label: 'View Payruns', route: '/payroll/payruns', iconName: 'Receipt', permission: PERMISSIONS.PAYRUNS_VIEW },
@@ -235,7 +235,7 @@ export const MOCK_QUICK_ACTIONS_BY_ROLE = {
     { id: 'qa_1', label: 'Create Payrun', route: '/payroll/payruns/new', iconName: 'Plus', permission: PERMISSIONS.PAYRUNS_CREATE },
     { id: 'qa_2', label: 'Salary Structures', route: '/payroll/salary-structures', iconName: 'Layers', permission: PERMISSIONS.SALARY_STRUCTURES_VIEW },
     { id: 'qa_3', label: 'Salary Rules', route: '/payroll/salary-rules', iconName: 'Sliders', permission: PERMISSIONS.SALARY_RULES_VIEW },
-    { id: 'qa_4', label: 'Payroll Reports', route: '/reports/payroll', iconName: 'BarChart3', permission: PERMISSIONS.REPORTS_VIEW },
+    { id: 'qa_4', label: 'View Payruns', route: '/payroll/payruns', iconName: 'Receipt', permission: PERMISSIONS.PAYRUNS_VIEW },
   ],
   [ROLES.ADMIN]: [
     { id: 'qa_1', label: 'Add Employee', route: '/employees/new', iconName: 'UserPlus', permission: PERMISSIONS.EMPLOYEES_CREATE },

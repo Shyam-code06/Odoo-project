@@ -1,4 +1,5 @@
 import { employeeService } from './employeeService';
+import { apiClient } from './apiClient';
 
 /**
  * Payroll Eligibility & Contract Resolution Service
@@ -90,6 +91,42 @@ export const payrollEligibilityService = {
    * Fetches all employees with their derived eligibility status for a given structure and period.
    */
   getEligibleEmployeesForPayrun: async (selectedStructureId, periodStart, periodEnd) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.post('/payruns/eligible-employees', {
+        salary_structure_id: selectedStructureId,
+        period_start: periodStart,
+        period_end: periodEnd,
+      });
+
+      if (apiRes && apiRes.success && apiRes.data?.employees) {
+        const mapped = apiRes.data.employees.map((emp) => ({
+          id: emp.id,
+          employeeCode: emp.employee_code,
+          fullName: `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
+          departmentId: emp.department_id,
+          departmentName: emp.department_name || 'Unassigned',
+          jobPositionTitle: emp.job_position_title || 'Unassigned',
+          avatar: emp.avatar || '',
+          contractId: emp.contract?.id || null,
+          contractCode: emp.contract?.contract_number || 'N/A',
+          wage: emp.contract ? Number(emp.contract.wage) : 0,
+          employmentType: emp.contract?.employment_type || 'Full-time',
+          hasBankDetails: true,
+          isEligible: Boolean(emp.is_eligible),
+          ineligibilityReason: emp.ineligibility_reason,
+        }));
+
+        return {
+          success: true,
+          data: mapped,
+        };
+      }
+    } catch (err) {
+      console.warn('[payrollEligibilityService] Live API failed, fallback to mock store:', err.message);
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawEmps = employeeService._getRawEmployees() || [];

@@ -67,8 +67,14 @@ export class PayrunService {
             period_end
           );
 
-          // If a structure override is requested, check compatibility
-          if (salary_structure_id && !applicableContract.salary_structure_id) {
+          // If a salary structure is selected, check compatibility
+          if (salary_structure_id && applicableContract.salary_structure_id) {
+            if (Number(applicableContract.salary_structure_id) !== Number(salary_structure_id)) {
+              const struct = await db('salary_structures').where('id', applicableContract.salary_structure_id).first();
+              isEligible = false;
+              ineligibilityReason = `Contract uses a different Salary Structure (${struct ? struct.name : applicableContract.salary_structure_id})`;
+            }
+          } else if (salary_structure_id && !applicableContract.salary_structure_id) {
             applicableContract.salary_structure_id = Number(salary_structure_id);
           }
         } catch (err) {
@@ -572,6 +578,10 @@ export class PayrunService {
       throw error;
     }
 
+    if (payrun.status === 'validated') {
+      return await this.getPayrunById(payrunId);
+    }
+
     if (payrun.status !== 'computed') {
       const error = new Error(
         `Payrun must be in 'computed' status to be validated (current status: '${payrun.status}')`
@@ -645,6 +655,10 @@ export class PayrunService {
       error.statusCode = 404;
       error.code = 'NOT_FOUND';
       throw error;
+    }
+
+    if (payrun.status === 'paid') {
+      return await this.getPayrunById(payrunId);
     }
 
     if (payrun.status !== 'validated') {

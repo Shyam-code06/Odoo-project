@@ -65,6 +65,10 @@ export default function PayslipDetailsPage() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const handleDisabledAction = (actionName) => {
     toast.info(`${actionName} will be available in the upcoming document delivery update.`);
   };
@@ -129,7 +133,7 @@ export default function PayslipDetailsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDisabledAction('Print Statement')}
+            onClick={handlePrint}
             className="gap-1.5 text-xs text-slate-700"
           >
             <Printer className="w-4 h-4" />
@@ -139,7 +143,7 @@ export default function PayslipDetailsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDisabledAction('Download PDF')}
+            onClick={handlePrint}
             className="gap-1.5 text-xs text-slate-700"
           >
             <Download className="w-4 h-4" />

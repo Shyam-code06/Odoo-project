@@ -172,19 +172,6 @@ export const NAVIGATION_CATEGORIES = [
     ],
   },
   {
-    id: 'insights',
-    label: 'Insights',
-    items: [
-      {
-        id: 'reports',
-        label: 'Reports',
-        path: '/reports',
-        iconName: 'BarChart3',
-        permission: PERMISSIONS.REPORTS_VIEW,
-      },
-    ],
-  },
-  {
     id: 'administration',
     label: 'Administration',
     items: [

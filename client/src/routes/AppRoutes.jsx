@@ -709,12 +709,9 @@ export const AppRoutes = () => {
             }
           />
 
-          {/* Reports Routes (Part 12) */}
-          <Route path="/reports" element={<RoleRoute requiredPermission={PERMISSIONS.REPORTS_VIEW}><PlaceholderPage title="HR Analytics & Reports" part="12" iconName="BarChart3" /></RoleRoute>} />
-          <Route path="/reports/payroll" element={<RoleRoute requiredPermission={PERMISSIONS.REPORTS_VIEW}><PlaceholderPage title="Payroll Reports" part="12" iconName="BarChart3" /></RoleRoute>} />
-          <Route path="/reports/employees" element={<RoleRoute requiredPermission={PERMISSIONS.REPORTS_VIEW}><PlaceholderPage title="Employee Reports" part="12" iconName="BarChart3" /></RoleRoute>} />
-          <Route path="/reports/attendance" element={<RoleRoute requiredPermission={PERMISSIONS.REPORTS_VIEW}><PlaceholderPage title="Attendance Reports" part="12" iconName="BarChart3" /></RoleRoute>} />
-          <Route path="/reports/time-off" element={<RoleRoute requiredPermission={PERMISSIONS.REPORTS_VIEW}><PlaceholderPage title="Time Off Reports" part="12" iconName="BarChart3" /></RoleRoute>} />
+          {/* Reports Routes */}
+          <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/reports/*" element={<Navigate to="/dashboard" replace />} />
 
           {/* Administration Routes (Part 13) */}
           <Route path="/admin/users" element={<RoleRoute requiredPermission={PERMISSIONS.USERS_VIEW}><UserManagementPage /></RoleRoute>} />

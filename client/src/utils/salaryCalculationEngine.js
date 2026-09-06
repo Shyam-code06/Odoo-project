@@ -325,7 +325,9 @@ export const calculateSalaryStructure = (structure, rules = [], baseSalaryInput 
     });
   });
 
-  const gross = Math.max(0, Number(context['GROSS'] || accumGross).toFixed(2));
+  const calculatedGross = Number(context['GROSS'] || accumGross || 0);
+  const finalGross = calculatedGross > 0 ? calculatedGross : Number(baseSalaryInput || 0);
+  const gross = Math.max(0, finalGross).toFixed(2);
   const deductions = Math.max(0, Number(context['DEDUCTIONS'] || accumDeductions).toFixed(2));
   const net = Math.max(0, Number(context['NET'] || (gross - deductions)).toFixed(2));
 

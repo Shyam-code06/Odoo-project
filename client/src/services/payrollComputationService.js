@@ -23,7 +23,7 @@ export const payrollComputationService = {
         let rawPayslips = [...(employeeService._getRawPayslips() || [])];
         let rawPayslipLines = [...(employeeService._getRawPayslipLines() || [])];
 
-        const targetStructure = rawStructs.find((s) => s.id === payrun.salaryStructureId);
+        const targetStructure = rawStructs.find((s) => String(s.id) === String(payrun.salaryStructureId));
         if (!targetStructure) {
           resolve({
             success: false,
@@ -34,7 +34,7 @@ export const payrollComputationService = {
 
         // Get active rules for structure ordered by sequence ASC
         const uiRules = rawRules
-          .filter((r) => r.salary_structure_id === payrun.salaryStructureId && r.is_active)
+          .filter((r) => String(r.salary_structure_id) === String(payrun.salaryStructureId) && r.is_active)
           .map((r) => salaryRuleAdapter.toUIModel(r, rawStructs, rawCategories))
           .filter(Boolean)
           .sort((a, b) => a.sequence - b.sequence);
@@ -50,15 +50,21 @@ export const payrollComputationService = {
         const updatedPEs = [];
 
         payrunEmployees.forEach((pe) => {
-          const emp = rawEmployees.find((e) => e.id === pe.employeeId);
-          const contract = rawContracts.find((c) => c.id === pe.contractId);
-          const empName = emp ? `${emp.first_name} ${emp.last_name}` : pe.employeeId;
+          const empId = pe.employeeId ?? pe.employee_id;
+          const contractId = pe.contractId ?? pe.contract_id;
+          const emp = rawEmployees.find((e) => String(e.id) === String(empId));
+          const contract = rawContracts.find(
+            (c) =>
+              (contractId && String(c.id) === String(contractId)) ||
+              (String(c.employee_id) === String(empId) && String(c.status).toLowerCase() === 'active')
+          );
+          const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.fullName : `Employee #${empId}`;
 
           // Check 1: Missing contract
           if (!contract) {
             errorCount++;
             errors.push({
-              employeeId: pe.employeeId,
+              employeeId: empId,
               employeeName: empName,
               code: 'ERR_MISSING_CONTRACT',
               message: `No active employment contract found for ${empName}.`,
@@ -74,7 +80,7 @@ export const payrollComputationService = {
           // Check 2: Missing bank details warning
           if (contract.has_bank_details === false) {
             warnings.push({
-              employeeId: pe.employeeId,
+              employeeId: empId,
               employeeName: empName,
               code: 'WARN_MISSING_BANK',
               severity: 'warning',
@@ -85,14 +91,15 @@ export const payrollComputationService = {
           // Check 3: Duplicate Payslip detection
           const existingSlip = rawPayslips.find(
             (ps) =>
-              ps.employee_id === pe.employeeId &&
+              (String(ps.employee_id) === String(empId) || String(ps.employeeId) === String(empId)) &&
               ps.period_start === payrun.periodStart &&
               ps.period_end === payrun.periodEnd &&
-              ps.payrun_id !== payrun.id
+              ps.payrun_id !== payrun.id &&
+              ps.payrunId !== payrun.id
           );
           if (existingSlip) {
             warnings.push({
-              employeeId: pe.employeeId,
+              employeeId: empId,
               employeeName: empName,
               code: 'WARN_DUPLICATE_PAYSLIP',
               severity: 'warning',
@@ -104,13 +111,16 @@ export const payrollComputationService = {
           const baseWage = Number(contract.wage || 50000);
           const calcResult = calculateSalaryStructure(targetStructure, uiRules, baseWage);
 
-          const slipId = `slip-${payrun.id}-${pe.employeeId}`;
+          const slipId = `slip-${payrun.id}-${empId}`;
 
           const newSlip = {
             id: slipId,
             payrun_id: payrun.id,
-            employee_id: pe.employeeId,
+            payrunId: payrun.id,
+            employee_id: empId,
+            employeeId: empId,
             contract_id: contract.id,
+            contractId: contract.id,
             salary_structure_id: payrun.salaryStructureId,
             period_start: payrun.periodStart,
             period_end: payrun.periodEnd,

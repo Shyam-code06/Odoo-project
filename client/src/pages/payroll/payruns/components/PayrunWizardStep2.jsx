@@ -29,7 +29,8 @@ import { formatCurrency } from '../../../../utils/formatters';
 
 export function PayrunWizardStep2({ wizardData, updateWizardData, onBack }) {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const toastContext = useToast();
+  const toast = toastContext?.toast || toastContext || {};
 
   const { structure } = useSalaryStructure(wizardData.salaryStructureId);
   const {
@@ -101,21 +102,21 @@ export function PayrunWizardStep2({ wizardData, updateWizardData, onBack }) {
   const handleCreatePayrun = async (e) => {
     e.preventDefault();
     if (wizardData.selectedEmployeeIds.length === 0) {
-      toast.error('Please select at least one eligible employee to include in this payrun.');
+      toast?.error?.('Please select at least one eligible employee to include in this payrun.');
       return;
     }
 
     try {
       setSubmitting(true);
       const res = await payrunService.createPayrun(wizardData);
-      if (res.success) {
-        toast.success(res.message);
+      if (res && res.success && res.data?.id) {
+        toast?.success?.(res.message || 'Payrun created successfully.');
         navigate(`/payroll/payruns/${res.data.id}`);
       } else {
-        toast.error(res.message || 'Failed to create payrun');
+        toast?.error?.(res?.message || 'Failed to create payrun');
       }
     } catch (err) {
-      toast.error(err.message || 'An error occurred during payrun creation');
+      toast?.error?.(err?.message || 'An error occurred during payrun creation');
     } finally {
       setSubmitting(false);
     }

@@ -7,13 +7,27 @@ export const payrunAdapter = {
   toUIModel: (payrun, structures = [], payrunEmployees = [], payslips = []) => {
     if (!payrun) return null;
 
-    const struct = structures.find((s) => s.id === payrun.salary_structure_id || s.id === payrun.salaryStructureId);
-    const pes = payrunEmployees.filter((pe) => pe.payrun_id === payrun.id || pe.payrunId === payrun.id);
-    const slips = payslips.filter((ps) => ps.payrun_id === payrun.id || ps.payrunId === payrun.id);
+    const struct = structures.find(
+      (s) => String(s.id) === String(payrun.salary_structure_id || payrun.salaryStructureId)
+    );
+    const pes = payrunEmployees.filter(
+      (pe) => String(pe.payrun_id || pe.payrunId) === String(payrun.id)
+    );
+    const slips = payslips.filter(
+      (ps) => String(ps.payrun_id || ps.payrunId) === String(payrun.id)
+    );
 
     const grossSalary = slips.reduce((acc, s) => acc + Number(s.gross_salary || s.grossSalary || 0), 0);
     const totalDeductions = slips.reduce((acc, s) => acc + Number(s.total_deductions || s.totalDeductions || 0), 0);
     const netSalary = slips.reduce((acc, s) => acc + Number(s.net_salary || s.netSalary || 0), 0);
+
+    const resolvedEmployeeCount =
+      payrun.employeeCount ??
+      payrun.employee_counts?.total_employees ??
+      payrun.total_employees ??
+      (Array.isArray(payrun.employees) ? payrun.employees.length : undefined) ??
+      (Array.isArray(payrun.payrun_employees) ? payrun.payrun_employees.length : undefined) ??
+      pes.length;
 
     return {
       id: payrun.id,
@@ -21,17 +35,21 @@ export const payrunAdapter = {
       salaryStructureId: payrun.salary_structure_id || payrun.salaryStructureId,
       salaryStructure: struct
         ? { id: struct.id, name: struct.name, code: struct.code }
-        : { id: payrun.salary_structure_id, name: 'Salary Structure', code: '' },
-      structureName: struct ? struct.name : 'Salary Structure',
-      structureCode: struct ? struct.code : '',
+        : {
+            id: payrun.salary_structure_id || payrun.salaryStructureId,
+            name: payrun.salary_structure_name || 'Salary Structure',
+            code: payrun.salary_structure_code || '',
+          },
+      structureName: struct ? struct.name : (payrun.salary_structure_name || 'Salary Structure'),
+      structureCode: struct ? struct.code : (payrun.salary_structure_code || ''),
       periodStart: payrun.period_start || payrun.periodStart,
       periodEnd: payrun.period_end || payrun.periodEnd,
       status: (payrun.status || 'draft').toLowerCase(),
-      createdBy: payrun.created_by || payrun.createdBy || 'System Admin',
+      createdBy: payrun.creator_email || payrun.created_by || payrun.createdBy || 'System Admin',
       computedAt: payrun.computed_at || payrun.computedAt,
       validatedAt: payrun.validated_at || payrun.validatedAt,
       paidAt: payrun.paid_at || payrun.paidAt,
-      employeeCount: pes.length,
+      employeeCount: resolvedEmployeeCount,
       grossSalary,
       totalDeductions,
       netSalary,
@@ -56,8 +74,12 @@ export const payrunEmployeeAdapter = {
   toUIModel: (pe, employees = [], contracts = [], payslip = null) => {
     if (!pe) return null;
 
-    const emp = employees.find((e) => e.id === pe.employee_id || e.id === pe.employeeId);
-    const contract = contracts.find((c) => c.id === pe.contract_id || c.id === pe.contractId);
+    const emp = employees.find((e) => String(e.id) === String(pe.employee_id || pe.employeeId));
+    const contract = contracts.find(
+      (c) =>
+        String(c.id) === String(pe.contract_id || pe.contractId) ||
+        (String(c.employee_id) === String(pe.employee_id || pe.employeeId) && String(c.status).toLowerCase() === 'active')
+    );
 
     return {
       id: pe.id,

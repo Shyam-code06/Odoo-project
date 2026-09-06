@@ -483,13 +483,20 @@ INSERT INTO `salary_structures` (`id`, `name`, `code`, `description`, `is_active
 
 -- 6. Salary Rules
 INSERT INTO `salary_rules` (`id`, `salary_structure_id`, `category_id`, `name`, `code`, `sequence`, `calculation_type`, `value`, `condition_expression`, `formula_expression`, `is_active`) VALUES
-(1, 1, 1, 'Basic Salary', 'BASIC', 1, 'percentage', 50.00, NULL, 'contract.wage * 0.50', TRUE),
-(2, 1, 2, 'House Rent Allowance (HRA)', 'HRA', 2, 'percentage', 20.00, NULL, 'contract.wage * 0.20', TRUE),
-(3, 1, 2, 'Special Allowance', 'SA', 3, 'percentage', 30.00, NULL, 'contract.wage * 0.30', TRUE),
+(1, 1, 1, 'Basic Salary', 'BASIC', 1, 'percentage', 50.00, NULL, 'contract.wage', TRUE),
+(2, 1, 2, 'House Rent Allowance (HRA)', 'HRA', 2, 'percentage', 20.00, NULL, 'contract.wage', TRUE),
+(3, 1, 2, 'Special Allowance', 'SA', 3, 'percentage', 30.00, NULL, 'contract.wage', TRUE),
 (4, 1, 3, 'Gross Salary', 'GROSS', 10, 'formula', 0.00, NULL, 'BASIC + HRA + SA', TRUE),
-(5, 1, 4, 'Provident Fund (PF)', 'PF', 20, 'percentage', 12.00, NULL, 'BASIC * 0.12', TRUE),
+(5, 1, 4, 'Provident Fund (PF)', 'PF', 20, 'percentage', 12.00, NULL, 'BASIC', TRUE),
 (6, 1, 4, 'Professional Tax', 'PT', 21, 'fixed', 200.00, NULL, '200', TRUE),
-(7, 1, 5, 'Net Salary', 'NET', 100, 'formula', 0.00, NULL, 'GROSS - (PF + PT)', TRUE);
+(7, 1, 5, 'Net Salary', 'NET', 100, 'formula', 0.00, NULL, 'GROSS - (PF + PT)', TRUE),
+(8, 2, 1, 'Basic Salary', 'BASIC', 1, 'percentage', 50.00, NULL, 'contract.wage', TRUE),
+(9, 2, 2, 'House Rent Allowance (HRA)', 'HRA', 2, 'percentage', 25.00, NULL, 'contract.wage', TRUE),
+(10, 2, 2, 'Executive Allowance', 'EXEC_ALW', 3, 'percentage', 25.00, NULL, 'contract.wage', TRUE),
+(11, 2, 3, 'Gross Salary', 'GROSS', 10, 'formula', 0.00, NULL, 'BASIC + HRA + EXEC_ALW', TRUE),
+(12, 2, 4, 'Provident Fund (PF)', 'PF', 20, 'percentage', 12.00, NULL, 'BASIC', TRUE),
+(13, 2, 4, 'Professional Tax', 'PT', 21, 'fixed', 200.00, NULL, '200', TRUE),
+(14, 2, 5, 'Net Salary', 'NET', 100, 'formula', 0.00, NULL, 'GROSS - (PF + PT)', TRUE);
 
 -- 7. Time Off Types
 INSERT INTO `time_off_types` (`id`, `name`, `code`, `unit`, `requires_allocation`, `requires_approval`, `is_paid`, `is_active`) VALUES

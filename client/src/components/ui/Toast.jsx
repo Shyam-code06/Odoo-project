@@ -27,6 +27,7 @@ export const ToastProvider = ({ children }) => {
     warning: (message, title = 'Warning') => addToast({ type: 'warning', title, message }),
     info: (message, title = 'Notice') => addToast({ type: 'info', title, message }),
   };
+  toast.toast = toast;
 
   return (
     <ToastContext.Provider value={toast}>

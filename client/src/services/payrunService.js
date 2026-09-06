@@ -5,7 +5,8 @@ import { apiClient } from './apiClient';
 
 /**
  * Payrun Master Service
- * Manages Payrun lifecycle (Draft -> Computed -> Validated -> Paid), duplicate checks, and mock persistence.
+ * Manages Payrun lifecycle (Draft -> Computed -> Validated -> Paid), duplicate checks,
+ * dual-synchronization with backend database and localStorage persistence.
  */
 
 export const payrunService = {
@@ -14,173 +15,155 @@ export const payrunService = {
   // ==========================================
 
   getPayruns: async (params = {}) => {
-    // 1. Attempt live HTTP REST API call via apiClient
+    let backendItems = [];
     try {
       const apiRes = await apiClient.get('/payruns', params);
       if (apiRes?.success && apiRes?.data) {
-        const rawPayruns = Array.isArray(apiRes.data)
+        backendItems = Array.isArray(apiRes.data)
           ? apiRes.data
-          : apiRes.data.payruns || [];
-        const rawStructs = employeeService._getRawSalaryStructures() || [];
-        const rawPEs = employeeService._getRawPayrunEmployees() || [];
-        const rawSlips = employeeService._getRawPayslips() || [];
-
-        const items = rawPayruns
-          .map((p) => payrunAdapter.toUIModel(p, rawStructs, rawPEs, rawSlips))
-          .filter(Boolean);
-
-        const total = apiRes.pagination?.total || items.length;
-        const page = apiRes.pagination?.page || params.page || 1;
-        const pageSize = apiRes.pagination?.limit || params.pageSize || 10;
-        const totalPages =
-          apiRes.pagination?.totalPages ||
-          Math.ceil(items.length / (params.pageSize || 10)) ||
-          1;
-
-        const metrics = {
-          total: items.length,
-          draft: items.filter((p) => p.status === 'Draft').length,
-          computed: items.filter((p) => p.status === 'Computed').length,
-          validated: items.filter((p) => p.status === 'Validated').length,
-          paid: items.filter((p) => p.status === 'Paid').length,
-        };
-
-        return {
-          success: true,
-          data: {
-            items,
-            total,
-            page,
-            pageSize,
-            totalPages,
-            metrics,
-          },
-        };
+          : (apiRes.data.payruns || apiRes.data.items || []);
       }
     } catch (err) {
-      console.warn('[payrunService] Live getPayruns failed, using local store:', err.message);
+      console.warn('[payrunService] Backend getPayruns unavailable, using local store:', err.message);
     }
 
-    // 2. Fallback to local store
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const rawPayruns = employeeService._getRawPayruns() || [];
-        const rawStructs = employeeService._getRawSalaryStructures() || [];
-        const rawPEs = employeeService._getRawPayrunEmployees() || [];
-        const rawSlips = employeeService._getRawPayslips() || [];
+    const localPayruns = employeeService._getRawPayruns() || [];
+    const rawStructs = employeeService._getRawSalaryStructures() || [];
+    const rawPEs = employeeService._getRawPayrunEmployees() || [];
+    const rawSlips = employeeService._getRawPayslips() || [];
 
-        let items = rawPayruns
-          .map((p) => payrunAdapter.toUIModel(p, rawStructs, rawPEs, rawSlips))
-          .filter(Boolean);
+    // Deduplicate and combine backend + local payruns
+    const backendIds = new Set(backendItems.map((p) => String(p.id)));
+    const allRawPayruns = [
+      ...backendItems,
+      ...localPayruns.filter((p) => !backendIds.has(String(p.id))),
+    ];
 
-        // Filter by Status
-        if (params.status && params.status !== 'all') {
-          items = items.filter((p) => p.status === params.status.toLowerCase());
-        }
+    let items = allRawPayruns
+      .map((p) => payrunAdapter.toUIModel(p, rawStructs, rawPEs, rawSlips))
+      .filter(Boolean);
 
-        // Filter by Salary Structure
-        if (params.salaryStructureId) {
-          items = items.filter((p) => p.salaryStructureId === params.salaryStructureId);
-        }
+    // Filter by Status
+    if (params.status && params.status !== 'all') {
+      items = items.filter((p) => p.status?.toLowerCase() === params.status.toLowerCase());
+    }
 
-        // Search (Name, Structure Name, Created By)
-        if (params.search) {
-          const q = params.search.toLowerCase().trim();
-          items = items.filter(
-            (p) =>
-              (p.name && p.name.toLowerCase().includes(q)) ||
-              (p.structureName && p.structureName.toLowerCase().includes(q)) ||
-              (p.createdBy && p.createdBy.toLowerCase().includes(q))
-          );
-        }
+    // Filter by Salary Structure
+    if (params.salaryStructureId) {
+      items = items.filter((p) => String(p.salaryStructureId) === String(params.salaryStructureId));
+    }
 
-        // Metric Summary Counters
-        const allUIItems = rawPayruns.map((p) => payrunAdapter.toUIModel(p, rawStructs, rawPEs, rawSlips));
-        const metrics = {
-          total: allUIItems.length,
-          draft: allUIItems.filter((p) => p.status === 'draft').length,
-          computed: allUIItems.filter((p) => p.status === 'computed').length,
-          validated: allUIItems.filter((p) => p.status === 'validated').length,
-          paid: allUIItems.filter((p) => p.status === 'paid').length,
-        };
+    // Search (Name, Structure Name, Created By)
+    if (params.search) {
+      const q = params.search.toLowerCase().trim();
+      items = items.filter(
+        (p) =>
+          (p.name && p.name.toLowerCase().includes(q)) ||
+          (p.structureName && p.structureName.toLowerCase().includes(q)) ||
+          (p.createdBy && p.createdBy.toLowerCase().includes(q))
+      );
+    }
 
-        // Sorting (default periodEnd DESC)
-        const sortBy = params.sortBy || 'periodEnd';
-        const sortDirection = params.sortDirection === 'asc' ? 1 : -1;
-        items.sort((a, b) => {
-          let valA = a[sortBy] ?? '';
-          let valB = b[sortBy] ?? '';
-          if (typeof valA === 'string') valA = valA.toLowerCase();
-          if (typeof valB === 'string') valB = valB.toLowerCase();
-          if (valA < valB) return -1 * sortDirection;
-          if (valA > valB) return 1 * sortDirection;
-          return 0;
-        });
-
-        // Pagination
-        const page = parseInt(params.page, 10) || 1;
-        const pageSize = parseInt(params.pageSize, 10) || 10;
-        const total = items.length;
-        const totalPages = Math.ceil(total / pageSize) || 1;
-        const paginatedData = items.slice((page - 1) * pageSize, page * pageSize);
-
-        resolve({
-          success: true,
-          data: {
-            items: paginatedData,
-            total,
-            page,
-            pageSize,
-            totalPages,
-            metrics,
-          },
-        });
-      }, 150);
+    // Sorting (default periodEnd DESC)
+    const sortBy = params.sortBy || 'periodEnd';
+    const sortDirection = params.sortDirection === 'asc' ? 1 : -1;
+    items.sort((a, b) => {
+      let valA = a[sortBy] ?? '';
+      let valB = b[sortBy] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return -1 * sortDirection;
+      if (valA > valB) return 1 * sortDirection;
+      return 0;
     });
+
+    const total = items.length;
+    const page = Number(params.page) || 1;
+    const pageSize = Number(params.pageSize) || 10;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const startIndex = (page - 1) * pageSize;
+    const paginatedItems = items.slice(startIndex, startIndex + pageSize);
+
+    const metrics = {
+      total: items.length,
+      draft: items.filter((p) => p.status?.toLowerCase() === 'draft').length,
+      computed: items.filter((p) => p.status?.toLowerCase() === 'computed').length,
+      validated: items.filter((p) => p.status?.toLowerCase() === 'validated').length,
+      paid: items.filter((p) => p.status?.toLowerCase() === 'paid').length,
+    };
+
+    return {
+      success: true,
+      data: {
+        items: paginatedItems,
+        total,
+        page,
+        pageSize,
+        totalPages,
+        metrics,
+      },
+    };
   },
 
   getPayrunById: async (id) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const rawPayruns = employeeService._getRawPayruns() || [];
-        const rawPayrun = rawPayruns.find((p) => p.id === id);
-        if (!rawPayrun) {
-          resolve({
-            success: false,
-            message: `Payrun with ID ${id} not found.`,
-          });
-          return;
+    const rawStructs = employeeService._getRawSalaryStructures() || [];
+    const rawLines = employeeService._getRawPayslipLines() || [];
+    const rawEmps = employeeService._getRawEmployees() || [];
+    const rawContracts = employeeService._getRawContracts() || [];
+
+    // 1. Check local store
+    const localPayruns = employeeService._getRawPayruns() || [];
+    let rawPayrun = localPayruns.find((p) => String(p.id) === String(id));
+
+    // 2. If not found in local store or backend exists, query backend
+    if (!rawPayrun) {
+      try {
+        const apiRes = await apiClient.get(`/payruns/${id}`);
+        if (apiRes?.success && apiRes?.data) {
+          rawPayrun = apiRes.data;
         }
+      } catch (err) {
+        console.warn(`[payrunService] Backend getPayrunById(${id}) failed:`, err.message);
+      }
+    }
 
-        const rawStructs = employeeService._getRawSalaryStructures() || [];
-        const rawPEs = (employeeService._getRawPayrunEmployees() || []).filter(
-          (pe) => pe.payrun_id === id || pe.payrunId === id
-        );
-        const rawSlips = (employeeService._getRawPayslips() || []).filter(
-          (ps) => ps.payrun_id === id || ps.payrunId === id
-        );
-        const rawLines = employeeService._getRawPayslipLines() || [];
-        const rawEmps = employeeService._getRawEmployees() || [];
-        const rawContracts = employeeService._getRawContracts() || [];
+    if (!rawPayrun) {
+      return {
+        success: false,
+        message: `Payrun with ID ${id} not found.`,
+      };
+    }
 
-        const uiPayrun = payrunAdapter.toUIModel(rawPayrun, rawStructs, rawPEs, rawSlips);
+    const rawPEs = (employeeService._getRawPayrunEmployees() || []).filter(
+      (pe) => String(pe.payrun_id || pe.payrunId) === String(id)
+    );
+    const rawSlips = (employeeService._getRawPayslips() || []).filter(
+      (ps) => String(ps.payrun_id || ps.payrunId) === String(id)
+    );
 
-        // Map attached employees with their computed payslip details
-        const employees = rawPEs.map((pe) => {
-          const slip = rawSlips.find((s) => s.employee_id === pe.employee_id || s.employeeId === pe.employeeId);
-          const uiSlip = slip ? payslipAdapter.toUIModel(slip, rawLines) : null;
-          return payrunEmployeeAdapter.toUIModel(pe, rawEmps, rawContracts, uiSlip);
-        });
+    // If backend provided attached employee rows
+    const attachedPEs = rawPEs.length > 0 ? rawPEs : (rawPayrun.employees || rawPayrun.payrun_employees || []);
+    const uiPayrun = payrunAdapter.toUIModel(rawPayrun, rawStructs, attachedPEs, rawSlips);
 
-        resolve({
-          success: true,
-          data: {
-            ...uiPayrun,
-            employees,
-          },
-        });
-      }, 150);
+    // Map attached employees with their computed payslip details
+    const employees = attachedPEs.map((pe) => {
+      const empId = pe.employee_id || pe.employeeId || pe.id;
+      const slip = rawSlips.find(
+        (s) =>
+          String(s.employee_id || s.employeeId) === String(empId) &&
+          String(s.payrun_id || s.payrunId) === String(id)
+      );
+      const uiSlip = slip ? payslipAdapter.toUIModel(slip, rawLines) : null;
+      return payrunEmployeeAdapter.toUIModel(pe, rawEmps, rawContracts, uiSlip);
     });
+
+    return {
+      success: true,
+      data: {
+        ...uiPayrun,
+        employees,
+      },
+    };
   },
 
   // ==========================================
@@ -191,94 +174,119 @@ export const payrunService = {
     const rawPayruns = employeeService._getRawPayruns() || [];
     return rawPayruns.some(
       (p) =>
-        p.id !== excludeId &&
-        p.salary_structure_id === salaryStructureId &&
+        String(p.id) !== String(excludeId) &&
+        String(p.salary_structure_id || p.salaryStructureId) === String(salaryStructureId) &&
         p.period_start === periodStart &&
         p.period_end === periodEnd
     );
   },
 
   createPayrun: async (payload) => {
-    return new Promise((resolve) => {
-      setTimeout(async () => {
-        const { name, salaryStructureId, periodStart, periodEnd, selectedEmployeeIds = [], createdBy } = payload;
+    const { name, salaryStructureId, periodStart, periodEnd, selectedEmployeeIds = [], createdBy } = payload;
 
-        if (!salaryStructureId) {
-          resolve({ success: false, message: 'Salary Structure is required.' });
-          return;
-        }
-        if (!periodStart || !periodEnd) {
-          resolve({ success: false, message: 'Period Start and Period End are required.' });
-          return;
-        }
-        if (new Date(periodStart) > new Date(periodEnd)) {
-          resolve({ success: false, message: 'Period Start must be on or before Period End.' });
-          return;
-        }
-        if (selectedEmployeeIds.length === 0) {
-          resolve({ success: false, message: 'At least one eligible employee must be selected.' });
-          return;
-        }
+    if (!salaryStructureId) {
+      return { success: false, message: 'Salary Structure is required.' };
+    }
+    if (!periodStart || !periodEnd) {
+      return { success: false, message: 'Period Start and Period End are required.' };
+    }
+    if (new Date(periodStart) > new Date(periodEnd)) {
+      return { success: false, message: 'Period Start must be on or before Period End.' };
+    }
+    if (selectedEmployeeIds.length === 0) {
+      return { success: false, message: 'At least one eligible employee must be selected.' };
+    }
 
-        // Duplicate Payrun check
-        const isDuplicate = await payrunService.checkDuplicatePayrun(salaryStructureId, periodStart, periodEnd);
-        if (isDuplicate) {
-          resolve({
-            success: false,
-            message: 'A Payrun already exists for this Salary Structure and payroll period.',
-          });
-          return;
-        }
+    // Duplicate Payrun check
+    const isDuplicate = await payrunService.checkDuplicatePayrun(salaryStructureId, periodStart, periodEnd);
+    if (isDuplicate) {
+      return {
+        success: false,
+        message: 'A Payrun already exists for this Salary Structure and payroll period.',
+      };
+    }
 
-        const rawPayruns = [...(employeeService._getRawPayruns() || [])];
-        const rawPEs = [...(employeeService._getRawPayrunEmployees() || [])];
-        const rawContracts = employeeService._getRawContracts() || [];
+    const autoName = name?.trim() || `PAYRUN-${periodStart.substring(0, 7)}`;
+    let backendResult = null;
 
-        const payrunId = `payrun-${Date.now()}`;
-        const autoName = name || `PAYRUN-${periodStart.substring(0, 7)}`;
+    // 1. Attempt to persist to live backend database
+    try {
+      const backendPayload = {
+        name: autoName,
+        salary_structure_id: salaryStructureId ? Number(salaryStructureId) : undefined,
+        period_start: periodStart,
+        period_end: periodEnd,
+        employee_ids: selectedEmployeeIds.map(Number).filter((id) => !isNaN(id) && id > 0),
+      };
 
-        const newPayrun = {
-          id: payrunId,
-          name: autoName,
-          salary_structure_id: salaryStructureId,
-          period_start: periodStart,
-          period_end: periodEnd,
-          status: 'draft',
-          created_by: createdBy || 'Admin User',
-          computed_at: null,
-          validated_at: null,
-          paid_at: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
+      const apiRes = await apiClient.post('/payruns', backendPayload);
+      if (apiRes?.success && apiRes?.data) {
+        backendResult = apiRes.data;
+      }
+    } catch (err) {
+      console.warn('[payrunService] Live backend createPayrun fallback:', err.message);
+    }
 
-        // Create PayrunEmployee records for each selected employee
-        const newPEs = selectedEmployeeIds.map((empId, idx) => {
-          const contract = rawContracts.find((c) => c.employee_id === empId && c.status === 'Active');
-          return {
-            id: `pre-${payrunId}-${idx}`,
-            payrun_id: payrunId,
-            employee_id: empId,
-            contract_id: contract ? contract.id : 'con-001',
-            status: 'pending',
-            error_message: null,
-          };
-        });
+    // 2. Persist to local store so it NEVER vanishes across reloads or page navigation
+    const rawPayruns = [...(employeeService._getRawPayruns() || [])];
+    const rawPEs = [...(employeeService._getRawPayrunEmployees() || [])];
+    const rawContracts = employeeService._getRawContracts() || [];
+    const rawStructs = employeeService._getRawSalaryStructures() || [];
 
-        rawPayruns.unshift(newPayrun);
-        rawPEs.push(...newPEs);
+    const payrunId = backendResult?.id ? String(backendResult.id) : `payrun-${Date.now()}`;
 
-        employeeService._setRawPayruns(rawPayruns);
-        employeeService._setRawPayrunEmployees(rawPEs);
+    const newPayrun = {
+      id: payrunId,
+      name: backendResult?.name || autoName,
+      salary_structure_id: salaryStructureId,
+      salaryStructureId: salaryStructureId,
+      period_start: periodStart,
+      periodStart: periodStart,
+      period_end: periodEnd,
+      periodEnd: periodEnd,
+      status: 'draft',
+      created_by: createdBy || 'Admin User',
+      computed_at: null,
+      validated_at: null,
+      paid_at: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
-        const rawStructs = employeeService._getRawSalaryStructures() || [];
-        resolve({
-          success: true,
-          data: payrunAdapter.toUIModel(newPayrun, rawStructs, newPEs, []),
-          message: 'Payrun created successfully.',
-        });
-      }, 250);
+    // Create PayrunEmployee records
+    const newPEs = selectedEmployeeIds.map((empId, idx) => {
+      const contract = rawContracts.find(
+        (c) =>
+          (String(c.employee_id) === String(empId) || String(c.employeeId) === String(empId)) &&
+          String(c.status).toLowerCase() === 'active'
+      );
+      return {
+        id: `pre-${payrunId}-${idx}`,
+        payrun_id: payrunId,
+        payrunId: payrunId,
+        employee_id: empId,
+        employeeId: empId,
+        contract_id: contract ? contract.id : (rawContracts[0]?.id || 1),
+        contractId: contract ? contract.id : (rawContracts[0]?.id || 1),
+        status: 'pending',
+        error_message: null,
+      };
     });
+
+    const filteredPayruns = rawPayruns.filter((p) => String(p.id) !== String(payrunId));
+    filteredPayruns.unshift(newPayrun);
+
+    const filteredPEs = rawPEs.filter((pe) => String(pe.payrun_id || pe.payrunId) !== String(payrunId));
+    filteredPEs.push(...newPEs);
+
+    employeeService._setRawPayruns(filteredPayruns);
+    employeeService._setRawPayrunEmployees(filteredPEs);
+
+    return {
+      success: true,
+      data: payrunAdapter.toUIModel(newPayrun, rawStructs, newPEs, []),
+      message: 'Payrun created successfully.',
+    };
   },
 
   // ==========================================
@@ -286,180 +294,204 @@ export const payrunService = {
   // ==========================================
 
   computePayrun: async (id) => {
-    return new Promise((resolve) => {
-      setTimeout(async () => {
-        const rawPayruns = [...(employeeService._getRawPayruns() || [])];
-        const payrunIdx = rawPayruns.findIndex((p) => p.id === id);
-        if (payrunIdx === -1) {
-          resolve({ success: false, message: `Payrun with ID ${id} not found.` });
-          return;
-        }
+    // Attempt backend compute if numeric ID
+    if (!isNaN(Number(id))) {
+      try {
+        await apiClient.post(`/payruns/${id}/compute`);
+      } catch (err) {
+        console.warn(`[payrunService] Backend computePayrun(${id}) notice:`, err.message);
+      }
+    }
 
-        const rawStructs = employeeService._getRawSalaryStructures() || [];
-        const rawPEs = [...(employeeService._getRawPayrunEmployees() || [])];
-        const payrunPEs = rawPEs.filter((pe) => pe.payrun_id === id);
+    const rawPayruns = [...(employeeService._getRawPayruns() || [])];
+    const payrunIdx = rawPayruns.findIndex((p) => String(p.id) === String(id));
+    if (payrunIdx === -1) {
+      return { success: false, message: `Payrun with ID ${id} not found.` };
+    }
 
-        const uiPayrun = payrunAdapter.toUIModel(rawPayruns[payrunIdx], rawStructs, payrunPEs, []);
+    const rawStructs = employeeService._getRawSalaryStructures() || [];
+    const rawPEs = [...(employeeService._getRawPayrunEmployees() || [])];
+    const payrunPEs = rawPEs.filter((pe) => String(pe.payrun_id || pe.payrunId) === String(id));
 
-        // Run batch payroll computation engine
-        const compRes = await payrollComputationService.computePayrunBatch(uiPayrun, payrunPEs);
-        if (!compRes.success) {
-          resolve(compRes);
-          return;
-        }
+    const uiPayrun = payrunAdapter.toUIModel(rawPayruns[payrunIdx], rawStructs, payrunPEs, []);
 
-        // Update Payrun status & timestamp
-        rawPayruns[payrunIdx] = {
-          ...rawPayruns[payrunIdx],
-          status: 'computed',
-          computed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+    // Run batch payroll computation engine
+    const compRes = await payrollComputationService.computePayrunBatch(uiPayrun, payrunPEs);
+    if (!compRes.success) {
+      return compRes;
+    }
+
+    // Update Payrun status & timestamp
+    rawPayruns[payrunIdx] = {
+      ...rawPayruns[payrunIdx],
+      status: 'computed',
+      computed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Update PayrunEmployees
+    compRes.data.payrunEmployees.forEach((updatedPE) => {
+      const peIdx = rawPEs.findIndex((pe) => String(pe.id) === String(updatedPE.id));
+      if (peIdx !== -1) {
+        rawPEs[peIdx] = {
+          ...rawPEs[peIdx],
+          status: updatedPE.status,
+          error_message: updatedPE.errorMessage,
+          errorMessage: updatedPE.errorMessage,
         };
-
-        // Update PayrunEmployees
-        compRes.data.payrunEmployees.forEach((updatedPE) => {
-          const peIdx = rawPEs.findIndex((pe) => pe.id === updatedPE.id);
-          if (peIdx !== -1) {
-            rawPEs[peIdx] = {
-              ...rawPEs[peIdx],
-              status: updatedPE.status,
-              error_message: updatedPE.errorMessage,
-            };
-          }
-        });
-
-        employeeService._setRawPayruns(rawPayruns);
-        employeeService._setRawPayrunEmployees(rawPEs);
-
-        const rawSlips = employeeService._getRawPayslips() || [];
-        const updatedUIPayrun = payrunAdapter.toUIModel(rawPayruns[payrunIdx], rawStructs, payrunPEs, rawSlips);
-
-        resolve({
-          success: true,
-          data: {
-            payrun: updatedUIPayrun,
-            summary: compRes.data,
-          },
-          message: `Payroll computed successfully for ${compRes.data.computedCount} employees.`,
-        });
-      }, 300);
+      }
     });
+
+    employeeService._setRawPayruns(rawPayruns);
+    employeeService._setRawPayrunEmployees(rawPEs);
+
+    const rawSlips = employeeService._getRawPayslips() || [];
+    const freshPEs = rawPEs.filter((pe) => String(pe.payrun_id || pe.payrunId) === String(id));
+    const updatedUIPayrun = payrunAdapter.toUIModel(rawPayruns[payrunIdx], rawStructs, freshPEs, rawSlips);
+
+    return {
+      success: true,
+      data: {
+        payrun: updatedUIPayrun,
+        summary: compRes.data,
+      },
+      message: `Payroll computed successfully for ${compRes.data.computedCount} employees.`,
+    };
   },
 
   validatePayrun: async (id) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const rawPayruns = [...(employeeService._getRawPayruns() || [])];
-        const payrunIdx = rawPayruns.findIndex((p) => p.id === id);
-        if (payrunIdx === -1) {
-          resolve({ success: false, message: `Payrun with ID ${id} not found.` });
-          return;
-        }
+    // Attempt backend validate if numeric ID
+    if (!isNaN(Number(id))) {
+      try {
+        await apiClient.post(`/payruns/${id}/validate`);
+      } catch (err) {
+        console.warn(`[payrunService] Backend validatePayrun(${id}) notice:`, err.message);
+      }
+    }
 
-        const rawPEs = (employeeService._getRawPayrunEmployees() || []).filter((pe) => pe.payrun_id === id);
-        const hasErrors = rawPEs.some((pe) => pe.status === 'error');
+    const rawPayruns = [...(employeeService._getRawPayruns() || [])];
+    const payrunIdx = rawPayruns.findIndex((p) => String(p.id) === String(id));
+    if (payrunIdx === -1) {
+      return { success: false, message: `Payrun with ID ${id} not found.` };
+    }
 
-        if (hasErrors) {
-          resolve({
-            success: false,
-            message: 'Payrun cannot be validated because some employee calculations contain blocking errors.',
-          });
-          return;
-        }
+    const rawPEs = (employeeService._getRawPayrunEmployees() || []).filter(
+      (pe) => String(pe.payrun_id || pe.payrunId) === String(id)
+    );
+    const hasErrors = rawPEs.some((pe) => pe.status === 'error');
 
-        rawPayruns[payrunIdx] = {
-          ...rawPayruns[payrunIdx],
-          status: 'validated',
-          validated_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
+    if (hasErrors) {
+      return {
+        success: false,
+        message: 'Payrun cannot be validated because some employee calculations contain blocking errors.',
+      };
+    }
 
-        employeeService._setRawPayruns(rawPayruns);
+    rawPayruns[payrunIdx] = {
+      ...rawPayruns[payrunIdx],
+      status: 'validated',
+      validated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
-        const rawStructs = employeeService._getRawSalaryStructures() || [];
-        const rawSlips = employeeService._getRawPayslips() || [];
-        const updatedUIPayrun = payrunAdapter.toUIModel(rawPayruns[payrunIdx], rawStructs, rawPEs, rawSlips);
+    employeeService._setRawPayruns(rawPayruns);
 
-        resolve({
-          success: true,
-          data: updatedUIPayrun,
-          message: 'Payrun validated successfully and ready for payout.',
-        });
-      }, 200);
-    });
+    const rawStructs = employeeService._getRawSalaryStructures() || [];
+    const rawSlips = employeeService._getRawPayslips() || [];
+    const updatedUIPayrun = payrunAdapter.toUIModel(rawPayruns[payrunIdx], rawStructs, rawPEs, rawSlips);
+
+    return {
+      success: true,
+      data: updatedUIPayrun,
+      message: 'Payrun validated successfully and ready for payout.',
+    };
   },
 
   markPayrunPaid: async (id) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const rawPayruns = [...(employeeService._getRawPayruns() || [])];
-        const payrunIdx = rawPayruns.findIndex((p) => p.id === id);
-        if (payrunIdx === -1) {
-          resolve({ success: false, message: `Payrun with ID ${id} not found.` });
-          return;
-        }
+    // Attempt backend mark-paid if numeric ID
+    if (!isNaN(Number(id))) {
+      try {
+        await apiClient.post(`/payruns/${id}/mark-paid`);
+      } catch (err) {
+        console.warn(`[payrunService] Backend markPayrunPaid(${id}) notice:`, err.message);
+      }
+    }
 
-        const paidTimestamp = new Date().toISOString();
+    const rawPayruns = [...(employeeService._getRawPayruns() || [])];
+    const payrunIdx = rawPayruns.findIndex((p) => String(p.id) === String(id));
+    if (payrunIdx === -1) {
+      return { success: false, message: `Payrun with ID ${id} not found.` };
+    }
 
-        rawPayruns[payrunIdx] = {
-          ...rawPayruns[payrunIdx],
-          status: 'paid',
-          paid_at: paidTimestamp,
-          updated_at: paidTimestamp,
-        };
+    const paidTimestamp = new Date().toISOString();
 
-        // Also mark attached payslips as paid
-        const rawSlips = [...(employeeService._getRawPayslips() || [])];
-        rawSlips.forEach((s, idx) => {
-          if (s.payrun_id === id) {
-            rawSlips[idx] = { ...s, status: 'paid', updated_at: paidTimestamp };
-          }
-        });
+    rawPayruns[payrunIdx] = {
+      ...rawPayruns[payrunIdx],
+      status: 'paid',
+      paid_at: paidTimestamp,
+      updated_at: paidTimestamp,
+    };
 
-        employeeService._setRawPayruns(rawPayruns);
-        employeeService._setRawPayslips(rawSlips);
-
-        const rawStructs = employeeService._getRawSalaryStructures() || [];
-        const rawPEs = (employeeService._getRawPayrunEmployees() || []).filter((pe) => pe.payrun_id === id);
-        const updatedUIPayrun = payrunAdapter.toUIModel(rawPayruns[payrunIdx], rawStructs, rawPEs, rawSlips);
-
-        resolve({
-          success: true,
-          data: updatedUIPayrun,
-          message: 'Payrun marked as Paid and finalized as historical payroll.',
-        });
-      }, 200);
+    // Also mark attached payslips as paid
+    const rawSlips = [...(employeeService._getRawPayslips() || [])];
+    rawSlips.forEach((s, idx) => {
+      if (String(s.payrun_id || s.payrunId) === String(id)) {
+        rawSlips[idx] = { ...s, status: 'paid', updated_at: paidTimestamp };
+      }
     });
+
+    employeeService._setRawPayruns(rawPayruns);
+    employeeService._setRawPayslips(rawSlips);
+
+    const rawStructs = employeeService._getRawSalaryStructures() || [];
+    const rawPEs = (employeeService._getRawPayrunEmployees() || []).filter(
+      (pe) => String(pe.payrun_id || pe.payrunId) === String(id)
+    );
+    const updatedUIPayrun = payrunAdapter.toUIModel(rawPayruns[payrunIdx], rawStructs, rawPEs, rawSlips);
+
+    return {
+      success: true,
+      data: updatedUIPayrun,
+      message: 'Payrun marked as Paid and finalized as historical payroll.',
+    };
   },
 
   deletePayrun: async (id) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const rawPayruns = employeeService._getRawPayruns() || [];
-        const payrun = rawPayruns.find((p) => p.id === id);
+    // Attempt backend delete if numeric ID
+    if (!isNaN(Number(id))) {
+      try {
+        await apiClient.delete(`/payruns/${id}`);
+      } catch (err) {
+        console.warn(`[payrunService] Backend deletePayrun(${id}) notice:`, err.message);
+      }
+    }
 
-        if (payrun && payrun.status === 'paid') {
-          resolve({
-            success: false,
-            message: 'Finalized/Paid payruns are historical records and cannot be deleted.',
-          });
-          return;
-        }
+    const rawPayruns = employeeService._getRawPayruns() || [];
+    const payrun = rawPayruns.find((p) => String(p.id) === String(id));
 
-        const filteredPayruns = rawPayruns.filter((p) => p.id !== id);
-        const rawPEs = (employeeService._getRawPayrunEmployees() || []).filter((pe) => pe.payrun_id !== id);
-        const rawSlips = (employeeService._getRawPayslips() || []).filter((s) => s.payrun_id !== id);
+    if (payrun && payrun.status === 'paid') {
+      return {
+        success: false,
+        message: 'Finalized/Paid payruns are historical records and cannot be deleted.',
+      };
+    }
 
-        employeeService._setRawPayruns(filteredPayruns);
-        employeeService._setRawPayrunEmployees(rawPEs);
-        employeeService._setRawPayslips(rawSlips);
+    const filteredPayruns = rawPayruns.filter((p) => String(p.id) !== String(id));
+    const rawPEs = (employeeService._getRawPayrunEmployees() || []).filter(
+      (pe) => String(pe.payrun_id || pe.payrunId) !== String(id)
+    );
+    const rawSlips = (employeeService._getRawPayslips() || []).filter(
+      (s) => String(s.payrun_id || s.payrunId) !== String(id)
+    );
 
-        resolve({
-          success: true,
-          message: 'Payrun deleted successfully.',
-        });
-      }, 200);
-    });
+    employeeService._setRawPayruns(filteredPayruns);
+    employeeService._setRawPayrunEmployees(rawPEs);
+    employeeService._setRawPayslips(rawSlips);
+
+    return {
+      success: true,
+      message: 'Payrun deleted successfully.',
+    };
   },
 };
 

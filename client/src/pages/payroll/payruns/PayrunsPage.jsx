@@ -38,7 +38,8 @@ import { formatDate } from '../../../utils/formatters';
 export default function PayrunsPage() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
-  const { toast } = useToast();
+  const toastContext = useToast();
+  const toast = toastContext?.toast || toastContext || {};
 
   const canCreate = hasPermission(PERMISSIONS.PAYRUNS_CREATE);
 
