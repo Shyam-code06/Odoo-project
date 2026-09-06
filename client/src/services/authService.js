@@ -21,6 +21,8 @@ export const authService = {
                 name:
                   `${liveUser.first_name || ''} ${liveUser.last_name || ''}`.trim() ||
                   session.user.name,
+                phone: liveUser.phone !== undefined && liveUser.phone !== null ? liveUser.phone : (session.user.phone || ''),
+                address: liveUser.address !== undefined && liveUser.address !== null ? liveUser.address : (session.user.address || ''),
                 role: liveUser.role_name || session.user.role,
               };
               session.user = mergedUser;
@@ -74,6 +76,8 @@ export const authService = {
             apiUser.name ||
             apiUser.email,
           email: apiUser.email,
+          phone: apiUser.phone || '',
+          address: apiUser.address || '',
           role,
           department: apiUser.department_name || 'General',
           employeeId: apiUser.employee_code || `EMP-${apiUser.id}`,
@@ -154,7 +158,23 @@ export const authService = {
   updateProfile: async (updatedData) => {
     try {
       const res = await apiClient.put('/auth/profile', updatedData);
-      if (res?.data?.user) return { success: true, user: res.data.user };
+      if (res?.data?.user) {
+        const liveUser = res.data.user;
+        const stored = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (stored) {
+          const session = JSON.parse(stored);
+          session.user = {
+            ...session.user,
+            ...liveUser,
+            name: `${liveUser.first_name || ''} ${liveUser.last_name || ''}`.trim() || liveUser.name || session.user.name,
+            phone: liveUser.phone !== undefined && liveUser.phone !== null ? liveUser.phone : session.user.phone,
+            address: liveUser.address !== undefined && liveUser.address !== null ? liveUser.address : session.user.address,
+          };
+          localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+          return { success: true, user: session.user };
+        }
+        return { success: true, user: liveUser };
+      }
     } catch {
       // Fallback to local session update
     }
@@ -171,6 +191,25 @@ export const authService = {
     }
     return { success: true, user: updatedData };
   },
+
+  changePassword: async ({ currentPassword, newPassword }) => {
+    try {
+      const res = await apiClient.post('/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      return {
+        success: true,
+        message: res?.message || 'Password updated successfully.',
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.message || 'Failed to update password.',
+      };
+    }
+  },
 };
 
 export default authService;
+

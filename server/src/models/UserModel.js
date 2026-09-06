@@ -22,7 +22,9 @@ export class UserModel extends BaseModel {
         this.db.raw("UPPER(REPLACE(roles.name, ' ', '_')) as role_code"),
         'employees.first_name',
         'employees.last_name',
-        'employees.employee_code'
+        'employees.employee_code',
+        'employees.phone',
+        'employees.address'
       )
       .first();
 
@@ -54,6 +56,10 @@ export class UserModel extends BaseModel {
         'employees.employee_code',
         'employees.first_name',
         'employees.last_name',
+        'employees.phone',
+        'employees.address',
+        'employees.date_of_birth',
+        'employees.joining_date',
         'departments.name as department_name',
         'job_positions.title as job_title'
       )

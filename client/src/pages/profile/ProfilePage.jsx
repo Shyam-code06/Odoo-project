@@ -13,7 +13,7 @@ import { authService } from '../../services/authService';
 import { useToast } from '../../components/ui/Toast';
 
 export const ProfilePage = () => {
-  const { user, currentRole } = useAuth();
+  const { user, currentRole, updateUserProfile } = useAuth();
   const toast = useToast();
 
   const [profile, setProfile] = useState(null);
@@ -25,6 +25,7 @@ export const ProfilePage = () => {
     last_name: '',
     phone: '',
     address: '',
+    date_of_birth: '',
   });
 
   const empId = user?.employee_id || user?.id;
@@ -44,6 +45,7 @@ export const ProfilePage = () => {
           last_name: data.last_name || '',
           phone: data.phone || '',
           address: data.address || '',
+          date_of_birth: data.date_of_birth ? data.date_of_birth.slice(0, 10) : '',
         });
       }
     } catch (err) {
@@ -66,6 +68,7 @@ export const ProfilePage = () => {
       last_name: currentLast,
       phone: profile?.phone || user?.phone || '',
       address: profile?.address || user?.address || '',
+      date_of_birth: profile?.date_of_birth ? profile.date_of_birth.slice(0, 10) : '',
     });
     setIsEditModalOpen(true);
   };
@@ -76,29 +79,32 @@ export const ProfilePage = () => {
 
     try {
       setSaving(true);
-      const res = await employeeService.updateEmployee(empId, {
-        first_name: editFormData.first_name,
-        last_name: editFormData.last_name,
-        phone: editFormData.phone,
-        address: editFormData.address,
-      });
+      const updatePayload = {
+        first_name: editFormData.first_name.trim(),
+        last_name: editFormData.last_name.trim(),
+        phone: editFormData.phone ? editFormData.phone.trim() : null,
+        address: editFormData.address ? editFormData.address.trim() : null,
+        date_of_birth: editFormData.date_of_birth ? editFormData.date_of_birth.trim() : null,
+      };
 
-      if (res && (res.success || res.employee)) {
-        toast.success('Profile updated successfully.');
-        setIsEditModalOpen(false);
-        await loadProfile();
+      // 1. Direct Employee Record DB Update
+      const res = await employeeService.updateEmployee(empId, updatePayload);
 
-        // Sync auth state in background
-        authService.updateProfile({
-          first_name: editFormData.first_name,
-          last_name: editFormData.last_name,
-          name: `${editFormData.first_name} ${editFormData.last_name}`.trim(),
-          phone: editFormData.phone,
+      // 2. Auth Profile Endpoint DB Update
+      if (updateUserProfile) {
+        await updateUserProfile({
+          ...updatePayload,
+          name: `${updatePayload.first_name} ${updatePayload.last_name}`.trim(),
         });
       } else {
-        toast.error(res?.error || 'Failed to update profile.');
+        await authService.updateProfile(updatePayload);
       }
+
+      toast.success('Profile updated successfully in database.');
+      setIsEditModalOpen(false);
+      await loadProfile();
     } catch (err) {
+      console.error('[ProfilePage] Save profile error:', err);
       toast.error(err.message || 'Failed to update profile.');
     } finally {
       setSaving(false);
@@ -248,6 +254,14 @@ export const ProfilePage = () => {
               value={editFormData.address}
               onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
               placeholder="City, Country"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Date of Birth</label>
+            <Input
+              type="date"
+              value={editFormData.date_of_birth}
+              onChange={(e) => setEditFormData({ ...editFormData, date_of_birth: e.target.value })}
             />
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">

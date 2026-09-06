@@ -5,6 +5,7 @@ import { PERMISSIONS } from '../../../config/permissions';
 import { usePayslips } from '../../../hooks/usePayslips';
 import { useSalaryStructures } from '../../../hooks/useSalary';
 import { employeeService } from '../../../services/employeeService';
+import { payslipService } from '../../../services/payslipService';
 
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { Card } from '../../../components/ui/Card';
@@ -286,9 +287,9 @@ export default function PayslipListPage({ isSelfService = false }) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDisabledAction('Print Payslip')}
-                        title="Print Statement (Future)"
-                        className="p-1 h-8 w-8 text-slate-400 hover:text-slate-600"
+                        onClick={() => payslipService.printPayslipDocument(slip.id)}
+                        title="Print Salary Statement"
+                        className="p-1 h-8 w-8 text-slate-500 hover:text-slate-800"
                       >
                         <Printer className="w-4 h-4" />
                       </Button>
@@ -296,9 +297,16 @@ export default function PayslipListPage({ isSelfService = false }) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDisabledAction('Download PDF')}
-                        title="Download PDF (Future)"
-                        className="p-1 h-8 w-8 text-slate-400 hover:text-slate-600"
+                        onClick={async () => {
+                          try {
+                            await payslipService.downloadPayslipPdf(slip.id);
+                            toast.success(`Payslip PDF (${slip.employeeCode || slip.id}) downloaded successfully.`);
+                          } catch (err) {
+                            toast.error('Failed to download PDF: ' + (err.message || 'Server error'));
+                          }
+                        }}
+                        title="Download PDF"
+                        className="p-1 h-8 w-8 text-slate-600 hover:text-orange-600"
                       >
                         <Download className="w-4 h-4" />
                       </Button>

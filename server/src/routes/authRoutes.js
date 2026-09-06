@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { signup, login, refresh, logout, getMe } from '../controllers/authController.js';
+import { signup, login, refresh, logout, getMe, updateMyProfile, changePassword } from '../controllers/authController.js';
 import { validateSignup, validateLogin } from '../middleware/validateAuth.js';
 import { authenticate } from '../middleware/authMiddleware.js';
 
@@ -41,4 +41,22 @@ router.post('/logout', logout);
  */
 router.get('/me', authenticate, getMe);
 
+/**
+ * @route   PUT /auth/me & PUT /auth/profile
+ * @desc    Update profile of currently authenticated user
+ * @access  Protected
+ */
+router.put('/me', authenticate, updateMyProfile);
+router.put('/profile', authenticate, updateMyProfile);
+
+/**
+ * @route   POST /auth/change-password & PUT /auth/password
+ * @desc    Change / set new password for authenticated user
+ * @access  Protected
+ */
+router.post('/change-password', authenticate, changePassword);
+router.put('/change-password', authenticate, changePassword);
+router.put('/password', authenticate, changePassword);
+
 export default router;
+

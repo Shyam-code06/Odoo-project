@@ -10,11 +10,15 @@ import {
   validateSimulatePayroll,
   validateBatchPayroll
 } from '../validators/payrollValidator.js';
+import payrollAnalyticsRoutes from './payrollAnalyticsRoutes.js';
 
 const router = Router();
 
 // All payroll calculation endpoints require authentication
 router.use(authenticate);
+
+// 0. Payroll Analytics (Admin & HR only)
+router.use('/analytics', payrollAnalyticsRoutes);
 
 // 1. Calculate Single Employee Payroll
 // Employees can calculate their own preview; HR/Payroll/Admin can calculate for any employee

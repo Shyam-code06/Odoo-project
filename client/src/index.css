@@ -60,3 +60,47 @@ body {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
   border-color: #CBD5E1;
 }
+
+/* =========================================================
+ * Comprehensive Print Stylesheet
+ * Ensures clean salary statements without sidebars or headers
+ * ========================================================= */
+@media print {
+  /* Hide all application navigation, sidebars, headers, and buttons */
+  aside,
+  header,
+  nav,
+  button,
+  .print\:hidden,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset layout container to standard print paper dimensions */
+  html,
+  body,
+  #root,
+  .min-h-screen,
+  main {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+  }
+
+  /* Remove shadows, borders, and unnecessary backgrounds from print containers */
+  .card,
+  .surface-card {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+}

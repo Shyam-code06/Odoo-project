@@ -14,6 +14,8 @@ import { RecentActivityWidget } from './components/RecentActivityWidget';
 import { PayrollOverviewWidget } from './components/PayrollOverviewWidget';
 import { NeedsAttentionWidget } from './components/NeedsAttentionWidget';
 import { QuickActionsWidget } from './components/QuickActionsWidget';
+import { ROLES, normalizeRole } from '../../config/permissions';
+import { PayrollAnalyticsWidget } from './components/PayrollAnalyticsWidget';
 
 export const DashboardPage = () => {
   const { user, currentRole } = useAuth();
@@ -116,6 +118,11 @@ export const DashboardPage = () => {
           <RecentActivityWidget activities={recentActivities} />
         </div>
       </div>
+
+      {/* Payroll Analytics Section (Restricted strictly to Admin & HR dashboards) */}
+      {normalizeRole(currentRole) !== ROLES.EMPLOYEE && (
+        <PayrollAnalyticsWidget />
+      )}
     </div>
   );
 };

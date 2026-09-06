@@ -16,6 +16,7 @@ import { useToast } from '../../../components/ui/Toast';
 import { PayslipDocument } from '../../../components/payroll/payslips/PayslipDocument';
 import { groupPayslipLines } from '../../../utils/payslipGrouping';
 import { formatCurrency, formatDate, formatPayrollPeriod } from '../../../utils/formatters';
+import { payslipService } from '../../../services/payslipService';
 
 import {
   ArrowLeft,
@@ -31,7 +32,8 @@ import {
   ExternalLink,
   History,
   Copy,
-  Check
+  Check,
+  Eye
 } from 'lucide-react';
 
 export default function PayslipDetailsPage() {
@@ -42,6 +44,7 @@ export default function PayslipDetailsPage() {
 
   const [copiedField, setCopiedField] = useState(null);
   const [activeViewMode, setActiveViewMode] = useState('document'); // 'document' | 'breakdown'
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const {
     payslip,
@@ -66,7 +69,44 @@ export default function PayslipDetailsPage() {
   };
 
   const handlePrint = () => {
-    window.print();
+    payslipService.printPayslipDocument(id, {
+      payslip,
+      employee,
+      contract,
+      salaryStructure,
+      payrun,
+      lines,
+    });
+  };
+
+  const handleDownloadPdf = async () => {
+    if (isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    try {
+      const safeEmpCode = (employee?.employeeCode || payslip?.employeeCode || `EMP${payslip?.employeeId || id}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safePeriod = (payslip?.periodStart || 'period').slice(0, 7).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filename = `Payslip_${safeEmpCode}_${safePeriod}.pdf`;
+
+      const res = await payslipService.downloadPayslipPdf(id, filename, {
+        payslip,
+        employee,
+        contract,
+        salaryStructure,
+        payrun,
+        lines,
+      });
+
+      if (res?.isPrintFallback) {
+        toast.info('Generated printable salary statement.');
+      } else {
+        toast.success('Payslip PDF downloaded successfully.');
+      }
+    } catch (err) {
+      console.error('Payslip PDF download failed:', err);
+      toast.error(err.message || 'Unable to generate payslip PDF. Please try again.');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   };
 
   const handleDisabledAction = (actionName) => {
@@ -96,9 +136,9 @@ export default function PayslipDetailsPage() {
   const { earnings, deductions, earningsTotal, deductionsTotal } = groupPayslipLines(lines);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6 print:p-0 print:max-w-none print:space-y-0">
       {/* 1. Header & Navigation Controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 print:hidden">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -143,11 +183,12 @@ export default function PayslipDetailsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handlePrint}
+            onClick={handleDownloadPdf}
+            disabled={isDownloadingPdf}
             className="gap-1.5 text-xs text-slate-700"
           >
-            <Download className="w-4 h-4" />
-            <span>Download PDF</span>
+            <Download className={`w-4 h-4 ${isDownloadingPdf ? 'animate-bounce text-orange-600' : ''}`} />
+            <span>{isDownloadingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
           </Button>
 
           <Button
@@ -164,7 +205,7 @@ export default function PayslipDetailsPage() {
 
       {/* 2. Data Integrity Warning Banner */}
       {!integrityCheck.isValid && (
-        <Card className="p-4 border border-amber-200 bg-amber-50/80 rounded-xl space-y-2">
+        <Card className="p-4 border border-amber-200 bg-amber-50/80 rounded-xl space-y-2 print:hidden">
           <div className="flex items-center gap-2 text-amber-800 font-semibold text-xs">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>Payroll Data Integrity Warning</span>
@@ -178,7 +219,7 @@ export default function PayslipDetailsPage() {
       )}
 
       {/* 3. Reference Information Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         {/* Card A: Employee Info */}
         <Card className="p-4 border border-slate-200 bg-white rounded-xl shadow-sm space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
@@ -292,7 +333,7 @@ export default function PayslipDetailsPage() {
       </div>
 
       {/* 4. Main Statement View (Printable Document Component) */}
-      <Card className="p-6 border border-slate-200 bg-white rounded-xl shadow-sm">
+      <Card className="p-6 border border-slate-200 bg-white rounded-xl shadow-sm print:p-0 print:border-none print:shadow-none print:rounded-none">
         <PayslipDocument
           payslip={payslip}
           employee={employee}
@@ -304,7 +345,7 @@ export default function PayslipDetailsPage() {
       </Card>
 
       {/* 5. Detailed Salary Rules Line Breakdown Table */}
-      <Card className="p-6 border border-slate-200 bg-white rounded-xl shadow-sm space-y-4">
+      <Card className="p-6 border border-slate-200 bg-white rounded-xl shadow-sm space-y-4 print:hidden">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <h3 className="font-semibold text-slate-800 text-base">Rule Calculation Breakdown</h3>
@@ -376,7 +417,7 @@ export default function PayslipDetailsPage() {
 
       {/* 6. Employee Payroll History Section */}
       {employeeHistory.length > 0 && (
-        <Card className="p-6 border border-slate-200 bg-white rounded-xl shadow-sm space-y-4">
+        <Card className="p-6 border border-slate-200 bg-white rounded-xl shadow-sm space-y-4 print:hidden">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
             <History className="w-5 h-5 text-orange-600" />
             <div>

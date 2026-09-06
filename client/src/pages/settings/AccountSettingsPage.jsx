@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Palette, Shield, Save } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card';
@@ -8,16 +8,49 @@ import { Button } from '../../components/ui/Button';
 import { Switch } from '../../components/ui/Switch';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../components/ui/Toast';
+import { authService } from '../../services/authService';
+import { employeeService } from '../../services/employeeService';
 
 export const AccountSettingsPage = () => {
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('account');
+  const [saving, setSaving] = useState(false);
 
   // Form state
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
+
+  // Synchronize state when user or profile changes
+  useEffect(() => {
+    if (user) {
+      const resolvedName = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
+      setName(resolvedName);
+      setEmail(user.email || '');
+      setPhone(user.phone || '');
+
+      // Also query employee record if linked to guarantee live DB phone
+      const empId = user.employee_id || user.id;
+      if (empId) {
+        employeeService.getEmployeeById(empId).then((emp) => {
+          if (emp) {
+            if (emp.phone) setPhone(emp.phone);
+            if (emp.first_name || emp.last_name) {
+              setName(`${emp.first_name || ''} ${emp.last_name || ''}`.trim());
+            }
+          }
+        }).catch(() => {});
+      }
+    }
+  }, [user]);
+
+  // Password state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
 
   const tabs = [
     { id: 'account', label: 'Personal Information', icon: User },
@@ -25,9 +58,61 @@ export const AccountSettingsPage = () => {
     { id: 'security', label: 'Security', icon: Shield },
   ];
 
-  const handleSave = (e) => {
+  const handleSavePersonal = async (e) => {
     e.preventDefault();
-    toast.success('Account settings saved successfully.');
+    try {
+      setSaving(true);
+      const parts = name.trim().split(' ');
+      const first_name = parts[0] || '';
+      const last_name = parts.slice(1).join(' ') || '';
+
+      await updateUserProfile({
+        first_name,
+        last_name,
+        name: name.trim(),
+        phone: phone.trim(),
+      });
+      toast.success('Personal details saved successfully in database.');
+    } catch (err) {
+      toast.error(err.message || 'Failed to update personal details.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (!passwordData.newPassword) {
+      toast.error('Please enter a new password.');
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters.');
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('New password and confirmation do not match.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const res = await authService.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      });
+
+      if (res.success) {
+        toast.success(res.message || 'Password updated successfully in database.');
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        toast.error(res.error || 'Failed to update password.');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to update password.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -39,23 +124,25 @@ export const AccountSettingsPage = () => {
 
       <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-      <form onSubmit={handleSave}>
+      <div className="space-y-6">
         {activeTab === 'account' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Personal Details</CardTitle>
-            </CardHeader>
-            <CardBody className="space-y-4 max-w-xl pt-4">
-              <Input label="Full Name" value={name} onChange={(e) => setName(e.target.value)} />
-              <Input label="Work Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <Input label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              <div className="pt-2">
-                <Button type="submit" variant="primary" leftIcon={Save}>
-                  Save Changes
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
+          <form onSubmit={handleSavePersonal}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Personal Details</CardTitle>
+              </CardHeader>
+              <CardBody className="space-y-4 max-w-xl pt-4">
+                <Input label="Full Name" value={name} onChange={(e) => setName(e.target.value)} required />
+                <Input label="Work Email" type="email" value={email} disabled helperText="Contact HR or Administrator to modify work email address." />
+                <Input label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <div className="pt-2">
+                  <Button type="submit" variant="primary" leftIcon={Save} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          </form>
         )}
 
         {activeTab === 'appearance' && (
@@ -81,23 +168,49 @@ export const AccountSettingsPage = () => {
         )}
 
         {activeTab === 'security' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Password & Security</CardTitle>
-            </CardHeader>
-            <CardBody className="space-y-4 max-w-xl pt-4">
-              <Input label="Current Password" type="password" placeholder="••••••••••••" isPasswordToggleable />
-              <Input label="New Password" type="password" placeholder="Enter new password" isPasswordToggleable />
-              <Input label="Confirm New Password" type="password" placeholder="Confirm new password" isPasswordToggleable />
-              <div className="pt-2">
-                <Button type="submit" variant="primary" leftIcon={Save}>
-                  Update Password
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
+          <form onSubmit={handleUpdatePassword}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Password & Security</CardTitle>
+              </CardHeader>
+              <CardBody className="space-y-4 max-w-xl pt-4">
+                <Input
+                  label="Current Password"
+                  type="password"
+                  placeholder="Enter current password (if known)"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  isPasswordToggleable
+                />
+                <Input
+                  label="New Password"
+                  type="password"
+                  placeholder="Enter new password (min 6 characters)"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  isPasswordToggleable
+                  required
+                />
+                <Input
+                  label="Confirm New Password"
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  isPasswordToggleable
+                  required
+                />
+                <div className="pt-2">
+                  <Button type="submit" variant="primary" leftIcon={Save} disabled={saving}>
+                    {saving ? 'Updating...' : 'Set New Password'}
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          </form>
         )}
-      </form>
+      </div>
     </div>
   );
 };
+

@@ -113,6 +113,18 @@ axiosInstance.interceptors.response.use(
       error.message ||
       'An unexpected network error occurred';
 
+    // If response was requested as Blob, parse the error payload if possible
+    if (error.response?.data instanceof Blob) {
+      try {
+        const blobText = await error.response.data.text();
+        const parsed = JSON.parse(blobText);
+        if (parsed.message) errorMsg = parsed.message;
+        else if (parsed.error) errorMsg = parsed.error;
+      } catch {
+        // Leave errorMsg as fallback
+      }
+    }
+
     if (Array.isArray(error.response?.data?.errors) && error.response.data.errors.length > 0) {
       const details = error.response.data.errors
         .map((e) => (typeof e === 'string' ? e : e.message || (e.field ? `${e.field}: invalid` : '')))
@@ -123,6 +135,7 @@ axiosInstance.interceptors.response.use(
       }
     }
 
+    const status = error.response?.status;
     const normalizedError = new Error(errorMsg);
     normalizedError.status = status;
     normalizedError.data = error.response?.data;

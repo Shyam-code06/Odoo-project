@@ -416,10 +416,124 @@ export const getMe = async (req, res) => {
   }
 };
 
+/**
+ * PUT /auth/me or PUT /auth/profile
+ * Update profile details of currently authenticated user
+ */
+export const updateMyProfile = async (req, res) => {
+  try {
+    const { first_name, last_name, phone, address, date_of_birth, password } = req.body;
+    const userId = req.user.id;
+    const employeeId = req.user.employee_id;
+
+    if (employeeId) {
+      const empUpdatePayload = {};
+      if (first_name !== undefined) empUpdatePayload.first_name = String(first_name).trim();
+      if (last_name !== undefined) empUpdatePayload.last_name = String(last_name).trim();
+      if (phone !== undefined) empUpdatePayload.phone = phone ? String(phone).trim() : null;
+      if (address !== undefined) empUpdatePayload.address = address ? String(address).trim() : null;
+      if (date_of_birth !== undefined) empUpdatePayload.date_of_birth = date_of_birth ? String(date_of_birth).trim() : null;
+      empUpdatePayload.updated_at = new Date();
+
+      await EmployeeModel.updateById(employeeId, empUpdatePayload);
+    }
+
+    const userUpdatePayload = {
+      updated_at: new Date()
+    };
+
+    if (password && typeof password === 'string' && password.trim().length >= 6) {
+      userUpdatePayload.password_hash = await hashPassword(password.trim());
+    }
+
+    await UserModel.updateById(userId, userUpdatePayload);
+
+    const freshUser = await UserModel.findProfileById(userId);
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Profile updated successfully.',
+      data: {
+        user: sanitizeUser(freshUser)
+      }
+    });
+  } catch (error) {
+    console.error('updateMyProfile error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Failed to update user profile.'
+    });
+  }
+};
+
+/**
+ * POST /auth/change-password or PUT /auth/password
+ * Securely change password for currently authenticated user
+ */
+export const changePassword = async (req, res) => {
+  try {
+    const { current_password, currentPassword, new_password, newPassword } = req.body;
+    const oldPassword = current_password || currentPassword;
+    const targetPassword = new_password || newPassword;
+    const userId = req.user.id;
+
+    if (!targetPassword || typeof targetPassword !== 'string' || targetPassword.trim().length < 6) {
+      return res.status(400).json({
+        status: 'error',
+        code: 'INVALID_PASSWORD',
+        message: 'New password must be at least 6 characters long.'
+      });
+    }
+
+    const userRecord = await UserModel.findById(userId);
+    if (!userRecord) {
+      return res.status(404).json({
+        status: 'error',
+        code: 'USER_NOT_FOUND',
+        message: 'User account not found.'
+      });
+    }
+
+    // Verify current password if provided
+    if (oldPassword && userRecord.password_hash) {
+      const isMatch = await comparePassword(oldPassword, userRecord.password_hash);
+      if (!isMatch) {
+        return res.status(400).json({
+          status: 'error',
+          code: 'INVALID_CURRENT_PASSWORD',
+          message: 'The current password you entered is incorrect.'
+        });
+      }
+    }
+
+    // Hash new password using bcrypt
+    const password_hash = await hashPassword(targetPassword.trim());
+
+    // Update users table in MySQL
+    await UserModel.updateById(userId, {
+      password_hash,
+      updated_at: new Date()
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Password updated successfully. Please use your new password next time you log in.'
+    });
+  } catch (error) {
+    console.error('changePassword error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Failed to update password.'
+    });
+  }
+};
+
 export default {
   signup,
   login,
   refresh,
   logout,
-  getMe
+  getMe,
+  updateMyProfile,
+  changePassword
 };

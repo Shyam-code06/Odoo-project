@@ -19,10 +19,10 @@ export const ProfileDropdown = () => {
     navigate('/auth/login', { replace: true });
   };
 
-  const handleRoleChange = (newRole) => {
-    switchRole(newRole);
-    toast.info(`Switched role to ${newRole}`);
-  };
+  // const handleRoleChange = (newRole) => {
+  //   switchRole(newRole);
+  //   toast.info(`Switched role to ${newRole}`);
+  // };
 
   return (
     <Dropdown
@@ -57,7 +57,7 @@ export const ProfileDropdown = () => {
       </div>
 
       {/* Role Switcher Toolbar for Development Testing */}
-      <div className="px-3 py-2 border-b border-slate-100 bg-orange-50/30">
+      {/* <div className="px-3 py-2 border-b border-slate-100 bg-orange-50/30">
         <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block mb-1 flex items-center gap-1">
           <ShieldAlert className="w-3 h-3 text-orange-500" />
           Switch Role (Dev Testing)
@@ -73,7 +73,7 @@ export const ProfileDropdown = () => {
             </option>
           ))}
         </select>
-      </div>
+      </div> */}
 
       <DropdownItem icon={User} onClick={() => navigate('/profile')}>
         My Profile

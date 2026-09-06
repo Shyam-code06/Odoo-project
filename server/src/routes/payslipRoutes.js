@@ -4,6 +4,7 @@ import {
   getPayslips,
   getMyPayslips,
   getPayslipById,
+  downloadPayslipPdf,
   sendSinglePayslipEmail,
   bulkSendPayslips
 } from '../controllers/payslipController.js';
@@ -35,6 +36,9 @@ router.get('/', getPayslips);
 
 // 4. Get Single Payslip by ID with lines (Ownership enforced in service)
 router.get('/:id', getPayslipById);
+
+// 4b. Download Payslip PDF directly via PDFKit stream (Ownership enforced in service)
+router.get('/:id/pdf', downloadPayslipPdf);
 
 // 5. Send Individual Payslip Email
 router.post(

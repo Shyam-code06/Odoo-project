@@ -142,11 +142,31 @@ export const bulkSendPayslips = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/payslips/:id/pdf
+ * Stream generated Payslip PDF using PDFKit
+ */
+export const downloadPayslipPdf = async (req, res) => {
+  try {
+    await payslipService.generatePayslipPdf(req.params.id, res, req.user);
+  } catch (err) {
+    // If headers were not yet sent, send JSON error
+    if (!res.headersSent) {
+      return res.status(err.statusCode || 500).json({
+        success: false,
+        message: err.message || 'Unable to generate payslip PDF. Please try again.',
+        code: err.code || 'PAYSLIP_PDF_ERROR'
+      });
+    }
+  }
+};
+
 export default {
   generatePayslips,
   getPayslips,
   getMyPayslips,
   getPayslipById,
+  downloadPayslipPdf,
   sendSinglePayslipEmail,
   bulkSendPayslips
 };

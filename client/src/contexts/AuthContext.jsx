@@ -80,6 +80,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUserProfile = async (updatedData) => {
+    try {
+      const res = await authService.updateProfile(updatedData);
+      if (res && res.user) {
+        const canonicalRole = normalizeRole(res.user.role || res.user.role_name || currentRole);
+        const merged = {
+          ...user,
+          ...res.user,
+          name: `${res.user.first_name || ''} ${res.user.last_name || ''}`.trim() || res.user.name || user?.name,
+          role: canonicalRole,
+        };
+        setUser(merged);
+        return { success: true, user: merged };
+      }
+    } catch (err) {
+      console.error('Failed to update user profile in context:', err);
+      throw err;
+    }
+  };
+
+  const refreshProfile = async () => {
+    try {
+      const session = await authService.getCurrentSession();
+      if (session && session.user) {
+        const canonicalRole = normalizeRole(session.user.role || session.user.role_name);
+        session.user.role = canonicalRole;
+        setUser(session.user);
+        setCurrentRole(canonicalRole);
+      }
+    } catch (err) {
+      console.warn('Failed to refresh profile:', err);
+    }
+  };
+
   const hasPermission = (permissionKey) => {
     if (!currentRole) return false;
     return checkHasPermission(currentRole, permissionKey);
@@ -106,6 +140,8 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         switchRole,
+        updateUserProfile,
+        refreshProfile,
         hasPermission,
         hasRole,
       }}

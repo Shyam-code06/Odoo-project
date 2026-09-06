@@ -7,6 +7,7 @@ import {
   ContractModel
 } from '../models/index.js';
 import payrollCalculationService from './payrollCalculationService.js';
+import payslipPdfService from './payslipPdfService.js';
 import { sendPayslipEmail as sendMail } from '../utils/mailer.js';
 
 export class PayslipService {
@@ -164,11 +165,15 @@ export class PayslipService {
       }
     }
 
-    if (params.payrun_id) {
-      query = query.where('payslips.payrun_id', params.payrun_id);
+    if (params.salary_structure_id || params.salaryStructureId) {
+      query = query.where('payslips.salary_structure_id', params.salary_structure_id || params.salaryStructureId);
     }
 
-    if (params.status) {
+    if (params.payrun_id || params.payrunId) {
+      query = query.where('payslips.payrun_id', params.payrun_id || params.payrunId);
+    }
+
+    if (params.status && params.status !== 'all') {
       query = query.where('payslips.status', params.status.trim().toLowerCase());
     }
 
@@ -194,6 +199,19 @@ export class PayslipService {
     const total = countResult ? parseInt(countResult.total, 10) : 0;
     const totalPages = Math.ceil(total / limit) || 1;
 
+    const sortByParam = params.sortBy || params.sort_by;
+    const sortDirParam = (params.sortDirection || params.sort_dir || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+
+    let orderColumn = 'payslips.id';
+    if (sortByParam === 'periodEnd' || sortByParam === 'period_end') orderColumn = 'payslips.period_end';
+    else if (sortByParam === 'periodStart' || sortByParam === 'period_start') orderColumn = 'payslips.period_start';
+    else if (sortByParam === 'grossSalary' || sortByParam === 'gross_salary') orderColumn = 'payslips.gross_salary';
+    else if (sortByParam === 'netSalary' || sortByParam === 'net_salary') orderColumn = 'payslips.net_salary';
+    else if (sortByParam === 'deductions' || sortByParam === 'total_deductions') orderColumn = 'payslips.total_deductions';
+    else if (sortByParam === 'employeeName') orderColumn = 'employees.first_name';
+    else if (sortByParam === 'status') orderColumn = 'payslips.status';
+    else if (sortByParam === 'createdAt' || sortByParam === 'created_at') orderColumn = 'payslips.created_at';
+
     const rows = await query
       .select(
         'payslips.*',
@@ -206,7 +224,7 @@ export class PayslipService {
         'payruns.name as payrun_name',
         'salary_structures.name as structure_name'
       )
-      .orderBy('payslips.id', 'desc')
+      .orderBy(orderColumn, sortDirParam)
       .limit(limit)
       .offset(offset);
 
@@ -442,6 +460,27 @@ export class PayslipService {
       successful_sends: successfulSends,
       failed_sends: failedSends
     };
+  }
+
+  /**
+   * Generate and stream Payslip PDF for an authorized user
+   *
+   * @param {number|string} id - Payslip ID
+   * @param {object} res - Express response stream
+   * @param {object} user - Authenticated user
+   */
+  async generatePayslipPdf(id, res, user) {
+    const payslip = await this.getPayslipById(id, user);
+
+    // Generate safe dynamic filename
+    const safeEmpCode = (payslip.employee_code || `EMP${payslip.employee_id}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safePeriod = (payslip.period_start || 'period').slice(0, 7).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `Payslip_${safeEmpCode}_${safePeriod}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    await payslipPdfService.streamPayslipPdf(payslip, res);
   }
 }
 
