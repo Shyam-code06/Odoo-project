@@ -105,6 +105,7 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [toastMessage, setToastMessage] = useState('');
+  const [toastError, setToastError] = useState('');
 
   const handleSearch = (val) => {
     setParams((prev) => ({ ...prev, search: val, page: 1 }));
@@ -139,7 +140,8 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
       setTimeout(() => setToastMessage(''), 3000);
       refetch();
     } catch (err) {
-      alert(err.message || 'Failed to approve request.');
+      setToastError(err.message || 'Failed to approve request.');
+      setTimeout(() => setToastError(''), 4000);
     }
   };
 
@@ -195,6 +197,12 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
         <div className="fixed bottom-5 right-5 z-50 bg-emerald-950 text-emerald-100 px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 border border-emerald-800 animate-slide-up">
           <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           <span className="text-sm font-medium">{toastMessage}</span>
+        </div>
+      )}
+      {toastError && (
+        <div className="fixed bottom-5 right-5 z-50 bg-rose-950 text-rose-100 px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 border border-rose-800 animate-slide-up">
+          <AlertCircle className="w-5 h-5 text-rose-400" />
+          <span className="text-sm font-medium">{toastError}</span>
         </div>
       )}
 

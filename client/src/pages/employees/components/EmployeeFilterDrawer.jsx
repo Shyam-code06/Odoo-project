@@ -8,7 +8,6 @@ import { employeeService } from '../../../services/employeeService';
 export const EmployeeFilterDrawer = ({ isOpen, onClose, filters, onApply, onReset }) => {
   const [departments, setDepartments] = useState([]);
   const [positions, setPositions] = useState([]);
-  const [managers, setManagers] = useState([]);
   const [schedules, setSchedules] = useState([]);
 
   const [localFilters, setLocalFilters] = useState(filters);
@@ -19,7 +18,6 @@ export const EmployeeFilterDrawer = ({ isOpen, onClose, filters, onApply, onRese
 
   useEffect(() => {
     employeeService.getDepartmentOptions().then(setDepartments);
-    employeeService.getManagerOptions().then(setManagers);
     employeeService.getScheduleOptions().then(setSchedules);
   }, []);
 
@@ -88,14 +86,6 @@ export const EmployeeFilterDrawer = ({ isOpen, onClose, filters, onApply, onRese
           onChange={(e) => handleChange('job_position_id', e.target.value)}
           options={positions.map((p) => ({ value: p.id, label: p.title }))}
           placeholder="All Job Positions"
-        />
-
-        <Select
-          label="Reporting Manager"
-          value={localFilters.manager_id || ''}
-          onChange={(e) => handleChange('manager_id', e.target.value)}
-          options={managers.map((m) => ({ value: m.id, label: m.name }))}
-          placeholder="All Managers"
         />
 
         <Select

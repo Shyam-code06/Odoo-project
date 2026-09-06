@@ -132,11 +132,16 @@ export const salaryService = {
     try {
       const apiRes = await apiClient.get(`/salary-structures/${id}`);
       if (apiRes?.success && apiRes?.data) {
-        const rawRules = employeeService._getRawSalaryRules() || [];
+        const backendStruct = apiRes.data;
+        const rawRules = (Array.isArray(backendStruct.rules) && backendStruct.rules.length > 0)
+          ? backendStruct.rules
+          : (employeeService._getRawSalaryRules() || []);
         const rawCategories = employeeService._getRawSalaryRuleCategories() || [];
-        const rawStructs = [apiRes.data];
-        const uiStruct = salaryStructureAdapter.toUIModel(apiRes.data, apiRes.data.rules || rawRules);
-        const attachedRules = (apiRes.data.rules || rawRules.filter((r) => r.salary_structure_id === id))
+        const rawContracts = employeeService._getRawContracts() || [];
+        const rawStructs = [backendStruct];
+        const uiStruct = salaryStructureAdapter.toUIModel(backendStruct, rawRules, rawContracts);
+        const attachedRules = rawRules
+          .filter((r) => String(r.salaryStructureId || r.salary_structure_id) === String(id))
           .map((r) => salaryRuleAdapter.toUIModel(r, rawStructs, rawCategories))
           .filter(Boolean)
           .sort((a, b) => a.sequence - b.sequence);
@@ -153,10 +158,10 @@ export const salaryService = {
       console.warn('[salaryService] Live getSalaryStructureById failed, using local store:', err.message);
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       setTimeout(() => {
         const rawStructs = employeeService._getRawSalaryStructures() || [];
-        const rawStruct = rawStructs.find((s) => s.id === id);
+        const rawStruct = rawStructs.find((s) => String(s.id) === String(id));
         if (!rawStruct) {
           resolve({
             success: false,
@@ -166,12 +171,13 @@ export const salaryService = {
         }
 
         const rawRules = employeeService._getRawSalaryRules() || [];
-        const uiStruct = salaryStructureAdapter.toUIModel(rawStruct, rawRules);
+        const rawCategories = employeeService._getRawSalaryRuleCategories() || [];
+        const rawContracts = employeeService._getRawContracts() || [];
+        const uiStruct = salaryStructureAdapter.toUIModel(rawStruct, rawRules, rawContracts);
 
         // Fetch attached rules in sequence order
-        const rawCategories = employeeService._getRawSalaryRuleCategories() || [];
         const attachedRules = rawRules
-          .filter((r) => r.salary_structure_id === id)
+          .filter((r) => String(r.salaryStructureId || r.salary_structure_id) === String(id))
           .map((r) => salaryRuleAdapter.toUIModel(r, rawStructs, rawCategories))
           .filter(Boolean)
           .sort((a, b) => a.sequence - b.sequence);
@@ -917,7 +923,7 @@ export const salaryService = {
     return new Promise((resolve) => {
       setTimeout(() => {
         const rawStructs = employeeService._getRawSalaryStructures() || [];
-        const rawStruct = rawStructs.find((s) => s.id === structureId);
+        const rawStruct = rawStructs.find((s) => String(s.id) === String(structureId));
         if (!rawStruct) {
           resolve({
             success: false,
@@ -930,7 +936,7 @@ export const salaryService = {
         const rawCategories = employeeService._getRawSalaryRuleCategories() || [];
 
         const uiRules = rawRules
-          .filter((r) => r.salary_structure_id === structureId)
+          .filter((r) => String(r.salaryStructureId || r.salary_structure_id) === String(structureId))
           .map((r) => salaryRuleAdapter.toUIModel(r, rawStructs, rawCategories))
           .filter(Boolean);
 
@@ -960,7 +966,7 @@ export const salaryService = {
         const rawStructs = employeeService._getRawSalaryStructures() || [];
 
         const uiRules = rawRules
-          .filter((r) => r.salary_structure_id === structureId)
+          .filter((r) => String(r.salaryStructureId || r.salary_structure_id) === String(structureId))
           .map((r) => salaryRuleAdapter.toUIModel(r, rawStructs, rawCategories))
           .filter(Boolean);
 
@@ -968,7 +974,11 @@ export const salaryService = {
 
         resolve({
           success: true,
-          data: validation,
+          data: {
+            ...validation,
+            isValid: Boolean(validation.valid),
+            issues: [...(validation.errors || []), ...(validation.warnings || [])],
+          },
         });
       }, 100);
     });

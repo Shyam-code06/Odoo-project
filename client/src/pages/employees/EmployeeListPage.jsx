@@ -57,7 +57,6 @@ export const EmployeeListPage = () => {
   const activeFilterCount = [
     params.department_id,
     params.job_position_id,
-    params.manager_id,
     params.employment_status,
     params.working_schedule_id,
   ].filter(Boolean).length;
@@ -99,7 +98,6 @@ export const EmployeeListPage = () => {
     },
     { header: 'Department', key: 'departmentName', sortable: true },
     { header: 'Job Position', key: 'jobPositionTitle', sortable: true },
-    { header: 'Manager', key: 'managerName' },
     {
       header: 'Status',
       key: 'employment_status',

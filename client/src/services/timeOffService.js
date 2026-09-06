@@ -835,12 +835,24 @@ export const timeOffService = {
   createTimeOffRequest: async (requestData) => {
     // 1. Attempt live HTTP API call
     try {
+      let durationVal =
+        requestData.duration !== undefined && requestData.duration !== null && !isNaN(Number(requestData.duration))
+          ? Number(requestData.duration)
+          : null;
+
+      if ((!durationVal || durationVal <= 0) && requestData.startDate && requestData.endDate) {
+        const d1 = new Date(requestData.startDate);
+        const d2 = new Date(requestData.endDate);
+        const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+        if (diff > 0) durationVal = diff;
+      }
+
       const payload = {
         employee_id: requestData.employeeId ? Number(requestData.employeeId) : undefined,
         time_off_type_id: Number(requestData.timeOffTypeId),
         start_date: requestData.startDate,
         end_date: requestData.endDate,
-        duration: requestData.duration ? Number(requestData.duration) : undefined,
+        duration: durationVal !== null && durationVal > 0 ? durationVal : 1,
         reason: requestData.reason || '',
       };
       const apiRes = await apiClient.post('/time-off/requests', payload);
@@ -856,10 +868,14 @@ export const timeOffService = {
       }
     } catch (err) {
       const errorMsg =
-        err.response?.data?.message ||
-        (Array.isArray(err.response?.data?.errors)
-          ? err.response.data.errors.map((e) => e.message || e).join(', ')
+        (Array.isArray(err.data?.errors)
+          ? err.data.errors.map((e) => (typeof e === 'string' ? e : e.message || e.field)).join(', ')
           : null) ||
+        (Array.isArray(err.response?.data?.errors)
+          ? err.response.data.errors.map((e) => (typeof e === 'string' ? e : e.message || e.field)).join(', ')
+          : null) ||
+        err.data?.message ||
+        err.response?.data?.message ||
         err.message ||
         'Failed to create leave request.';
       throw new Error(errorMsg);
@@ -990,7 +1006,7 @@ export const timeOffService = {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawReqs = [...employeeService._getRawTimeOffRequests()];
-        const reqIndex = rawReqs.findIndex((r) => r.id === id);
+        const reqIndex = rawReqs.findIndex((r) => String(r.id) === String(id));
         if (reqIndex === -1) {
           reject(new Error(`Request with ID ${id} not found.`));
           return;
@@ -1072,10 +1088,28 @@ export const timeOffService = {
   },
 
   approveTimeOffRequest: async (id, user = null) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.patch(`/time-off/requests/${id}/approve`);
+      if (apiRes?.success) {
+        return {
+          success: true,
+          data: apiRes.data,
+          message: apiRes.message || 'Time Off request approved and balance updated successfully.',
+        };
+      }
+    } catch (err) {
+      console.warn(`[timeOffService] Live approveTimeOffRequest(${id}) notice:`, err.message);
+      if (err.status && err.status !== 404) {
+        throw err;
+      }
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         const rawReqs = [...employeeService._getRawTimeOffRequests()];
-        const reqIndex = rawReqs.findIndex((r) => r.id === id);
+        const reqIndex = rawReqs.findIndex((r) => String(r.id) === String(id));
         if (reqIndex === -1) {
           reject(new Error(`Request with ID ${id} not found.`));
           return;
@@ -1094,7 +1128,7 @@ export const timeOffService = {
         // Update linked allocation if present
         if (existingReq.allocation_id) {
           const rawAllocs = [...employeeService._getRawTimeOffAllocations()];
-          const allocIndex = rawAllocs.findIndex((a) => a.id === existingReq.allocation_id);
+          const allocIndex = rawAllocs.findIndex((a) => String(a.id) === String(existingReq.allocation_id));
 
           if (allocIndex !== -1) {
             const alloc = rawAllocs[allocIndex];
@@ -1146,6 +1180,26 @@ export const timeOffService = {
   },
 
   rejectTimeOffRequest: async (id, user = null, reason = '') => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.patch(`/time-off/requests/${id}/reject`, {
+        rejected_reason: reason || 'Rejected by HR Manager',
+      });
+      if (apiRes?.success) {
+        return {
+          success: true,
+          data: apiRes.data,
+          message: apiRes.message || 'Time Off request rejected.',
+        };
+      }
+    } catch (err) {
+      console.warn(`[timeOffService] Live rejectTimeOffRequest(${id}) notice:`, err.message);
+      if (err.status && err.status !== 404) {
+        throw err;
+      }
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         if (!reason || !reason.trim()) {
@@ -1154,7 +1208,7 @@ export const timeOffService = {
         }
 
         const rawReqs = [...employeeService._getRawTimeOffRequests()];
-        const reqIndex = rawReqs.findIndex((r) => r.id === id);
+        const reqIndex = rawReqs.findIndex((r) => String(r.id) === String(id));
         if (reqIndex === -1) {
           reject(new Error(`Request with ID ${id} not found.`));
           return;
@@ -1166,7 +1220,7 @@ export const timeOffService = {
         // If request was previously approved, restore the consumed allocation balance
         if (existingReq.status === 'approved' && existingReq.allocation_id) {
           const rawAllocs = [...employeeService._getRawTimeOffAllocations()];
-          const allocIndex = rawAllocs.findIndex((a) => a.id === existingReq.allocation_id);
+          const allocIndex = rawAllocs.findIndex((a) => String(a.id) === String(existingReq.allocation_id));
           if (allocIndex !== -1) {
             const alloc = rawAllocs[allocIndex];
             rawAllocs[allocIndex] = {
@@ -1204,16 +1258,67 @@ export const timeOffService = {
     });
   },
 
-  deleteTimeOffRequest: async (id) => {
+  cancelTimeOffRequest: async (id, user = null) => {
+    // 1. Attempt live HTTP REST API call via apiClient
+    try {
+      const apiRes = await apiClient.patch(`/time-off/requests/${id}/cancel`);
+      if (apiRes?.success) {
+        return {
+          success: true,
+          data: apiRes.data,
+          message: apiRes.message || 'Time Off request cancelled.',
+        };
+      }
+    } catch (err) {
+      console.warn(`[timeOffService] Live cancelTimeOffRequest(${id}) notice:`, err.message);
+      if (err.status && err.status !== 404) {
+        throw err;
+      }
+    }
+
+    // 2. Fallback to local store
     return new Promise((resolve, reject) => {
       setTimeout(() => {
+        const rawReqs = [...employeeService._getRawTimeOffRequests()];
+        const reqIndex = rawReqs.findIndex((r) => String(r.id) === String(id));
+        if (reqIndex === -1) {
+          reject(new Error(`Request with ID ${id} not found.`));
+          return;
+        }
+
+        const existingReq = rawReqs[reqIndex];
+        const updatedReq = {
+          ...existingReq,
+          status: 'cancelled',
+          updated_at: new Date().toISOString(),
+        };
+
+        rawReqs[reqIndex] = updatedReq;
+        employeeService._setRawTimeOffRequests(rawReqs);
+
+        resolve({ success: true, data: updatedReq, message: 'Time Off request cancelled.' });
+      }, 150);
+    });
+  },
+
+  deleteTimeOffRequest: async (id) => {
+    // 1. Attempt live HTTP REST API call (cancel request on backend)
+    try {
+      await apiClient.patch(`/time-off/requests/${id}/cancel`).catch(() => {});
+    } catch (err) {
+      // ignore
+    }
+
+    // 2. Local store cleanup
+    return new Promise((resolve) => {
+      setTimeout(() => {
         const rawReqs = employeeService._getRawTimeOffRequests();
-        const target = rawReqs.find((r) => r.id === id);
+        const target = rawReqs.find((r) => String(r.id) === String(id));
 
         if (target && target.status === 'approved' && target.allocation_id) {
           // Restore allocation balance
           const rawAllocs = [...employeeService._getRawTimeOffAllocations()];
-          const allocIndex = rawAllocs.findIndex((a) => a.id === target.allocation_id);
+          const allocIndex = rawAllocs.findIndex((a) => String(a.id) === String(target.allocation_id));
           if (allocIndex !== -1) {
             const alloc = rawAllocs[allocIndex];
             rawAllocs[allocIndex] = {
@@ -1225,11 +1330,11 @@ export const timeOffService = {
           }
         }
 
-        const filtered = rawReqs.filter((r) => r.id !== id);
+        const filtered = rawReqs.filter((r) => String(r.id) !== String(id));
         employeeService._setRawTimeOffRequests(filtered);
 
         resolve({ success: true, message: 'Time Off request deleted successfully.' });
-      }, 200);
+      }, 150);
     });
   },
 

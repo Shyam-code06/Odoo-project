@@ -67,9 +67,11 @@ export const getEligibleAllocations = (
   const reqEnd = requestEndDate ? new Date(requestEndDate) : null;
 
   return allocations.filter((alloc) => {
-    // Must match employee and type
-    if (alloc.employeeId !== employeeId && alloc.employee_id !== employeeId) return false;
-    if (alloc.timeOffTypeId !== timeOffTypeId && alloc.time_off_type_id !== timeOffTypeId) return false;
+    // Must match employee and type (safely handle number vs string IDs)
+    const allocEmpId = alloc.employeeId ?? alloc.employee_id;
+    const allocTypeId = alloc.timeOffTypeId ?? alloc.time_off_type_id;
+    if (String(allocEmpId) !== String(employeeId)) return false;
+    if (String(allocTypeId) !== String(timeOffTypeId)) return false;
     
     // Must be approved
     const status = alloc.status ? alloc.status.toLowerCase() : '';

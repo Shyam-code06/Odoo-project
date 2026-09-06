@@ -47,13 +47,11 @@ export const EmployeeFormPage = () => {
   // Dropdown Lookups
   const [departments, setDepartments] = useState([]);
   const [positions, setPositions] = useState([]);
-  const [managers, setManagers] = useState([]);
   const [schedules, setSchedules] = useState([]);
 
   useEffect(() => {
     // Load lookup options
     employeeService.getDepartmentOptions().then(setDepartments);
-    employeeService.getManagerOptions(id).then(setManagers);
     employeeService.getScheduleOptions().then((opts) => {
       if (Array.isArray(opts) && opts.length > 0) {
         setSchedules(opts);
@@ -311,14 +309,6 @@ export const EmployeeFormPage = () => {
               error={errors.job_position_id}
               isDisabled={!formData.department_id}
               isRequired
-            />
-
-            <Select
-              label="Reporting Manager"
-              value={formData.manager_id || ''}
-              onChange={(e) => handleChange('manager_id', e.target.value)}
-              options={managers.map((m) => ({ value: m.id, label: m.name }))}
-              placeholder="None (Top Level Executive)"
             />
 
             <Select

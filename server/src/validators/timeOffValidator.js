@@ -109,8 +109,21 @@ export const validateLeaveRequestCreate = (req, res, next) => {
     }
   }
 
-  // duration
-  if (duration === undefined || duration === null || isNaN(Number(duration)) || Number(duration) <= 0) {
+  // duration (auto-resolve from dates if omitted)
+  let resolvedDuration = duration;
+  if (
+    (resolvedDuration === undefined || resolvedDuration === null || isNaN(Number(resolvedDuration)) || Number(resolvedDuration) <= 0) &&
+    start_date && end_date && isValidDate(start_date) && isValidDate(end_date)
+  ) {
+    const d1 = new Date(start_date);
+    const d2 = new Date(end_date);
+    const diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+    if (diffDays > 0) {
+      resolvedDuration = diffDays;
+    }
+  }
+
+  if (resolvedDuration === undefined || resolvedDuration === null || isNaN(Number(resolvedDuration)) || Number(resolvedDuration) <= 0) {
     errors.push({ field: 'duration', message: 'Duration must be a positive number greater than 0' });
   }
 
@@ -122,9 +135,10 @@ export const validateLeaveRequestCreate = (req, res, next) => {
   }
 
   if (errors.length > 0) {
+    const errorDetails = errors.map((e) => e.message).join(', ');
     return res.status(400).json({
       success: false,
-      message: 'Validation failed',
+      message: errorDetails || 'Validation failed',
       errors
     });
   }
@@ -135,7 +149,7 @@ export const validateLeaveRequestCreate = (req, res, next) => {
   req.body.time_off_type_id = Number(time_off_type_id);
   req.body.start_date = start_date.trim();
   req.body.end_date = end_date.trim();
-  req.body.duration = Number(duration);
+  req.body.duration = Number(resolvedDuration);
   req.body.reason = typeof reason === 'string' ? reason.trim() : null;
 
   next();

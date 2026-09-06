@@ -6,7 +6,13 @@ import { CheckCircle2, AlertTriangle, AlertCircle, RefreshCw } from 'lucide-reac
 export function StructureValidationPanel({ validation, onRefresh, isRefreshing }) {
   if (!validation) return null;
 
-  const { isValid, issues, errors, warnings } = validation;
+  const isValid = Boolean(validation.isValid ?? validation.valid);
+  const errors = Array.isArray(validation.errors) ? validation.errors : [];
+  const warnings = Array.isArray(validation.warnings) ? validation.warnings : [];
+  const issues = Array.isArray(validation.issues)
+    ? validation.issues
+    : [...errors, ...warnings];
+  const issuesCount = issues.length;
 
   return (
     <Card className="p-5 border border-slate-200 shadow-sm bg-white rounded-xl">
@@ -25,7 +31,7 @@ export function StructureValidationPanel({ validation, onRefresh, isRefreshing }
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-slate-800 text-base">Configuration Health</h3>
               <Badge variant={isValid ? 'success' : 'warning'}>
-                {isValid ? 'Ready for Payroll' : `${issues.length} Issues Found`}
+                {isValid ? 'Ready for Payroll' : `${issuesCount} Issues Found`}
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -69,23 +75,32 @@ export function StructureValidationPanel({ validation, onRefresh, isRefreshing }
         </div>
       ) : (
         <div className="space-y-2">
-          {errors.map((issue, idx) => (
-            <div key={`err-${idx}`} className="p-3 bg-red-50/70 border border-red-200 rounded-lg flex items-start gap-2 text-xs text-red-800">
-              <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <span className="font-medium">Rule Code {issue.ruleCode}:</span> {issue.message}
+          {errors.map((issue, idx) => {
+            const ruleCode = typeof issue === 'object' ? issue.ruleCode : null;
+            const message = typeof issue === 'object' ? issue.message : String(issue);
+            return (
+              <div key={`err-${idx}`} className="p-3 bg-red-50/70 border border-red-200 rounded-lg flex items-start gap-2 text-xs text-red-800">
+                <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  {ruleCode && <span className="font-medium">Rule Code {ruleCode}: </span>}
+                  {message}
+                </div>
               </div>
-            </div>
-          ))}
-          {warnings.map((issue, idx) => (
-            <div key={`warn-${idx}`} className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg flex items-start gap-2 text-xs text-amber-800">
-              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div>
-                {issue.ruleCode && <span className="font-medium">Rule Code {issue.ruleCode}: </span>}
-                {issue.message}
+            );
+          })}
+          {warnings.map((issue, idx) => {
+            const ruleCode = typeof issue === 'object' ? issue.ruleCode : null;
+            const message = typeof issue === 'object' ? issue.message : String(issue);
+            return (
+              <div key={`warn-${idx}`} className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg flex items-start gap-2 text-xs text-amber-800">
+                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  {ruleCode && <span className="font-medium">Rule Code {ruleCode}: </span>}
+                  {message}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </Card>

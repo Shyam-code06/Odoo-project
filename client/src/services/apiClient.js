@@ -107,12 +107,21 @@ axiosInstance.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    const status = error.response?.status;
-    const errorMsg =
+    let errorMsg =
       error.response?.data?.message ||
       error.response?.data?.error ||
       error.message ||
       'An unexpected network error occurred';
+
+    if (Array.isArray(error.response?.data?.errors) && error.response.data.errors.length > 0) {
+      const details = error.response.data.errors
+        .map((e) => (typeof e === 'string' ? e : e.message || (e.field ? `${e.field}: invalid` : '')))
+        .filter(Boolean)
+        .join(', ');
+      if (details) {
+        errorMsg = errorMsg && errorMsg !== 'Validation failed' ? `${errorMsg}: ${details}` : details;
+      }
+    }
 
     const normalizedError = new Error(errorMsg);
     normalizedError.status = status;

@@ -61,6 +61,7 @@ import SalaryRuleDetailsPage from '../pages/payroll/rules/SalaryRuleDetailsPage'
 import SalaryRuleFormPage from '../pages/payroll/rules/SalaryRuleFormPage';
 import SalaryRuleCategoriesPage from '../pages/payroll/categories/SalaryRuleCategoriesPage';
 
+import PayrollOverviewPage from '../pages/payroll/PayrollOverviewPage';
 import PayrunsPage from '../pages/payroll/payruns/PayrunsPage';
 import PayrunWizardPage from '../pages/payroll/payruns/PayrunWizardPage';
 import PayrunProcessingPage from '../pages/payroll/payruns/PayrunProcessingPage';
@@ -485,7 +486,7 @@ export const AppRoutes = () => {
           />
 
           {/* Payroll Routes (Parts 09, 10, 11) */}
-          <Route path="/payroll" element={<RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}><PayrunsPage /></RoleRoute>} />
+          <Route path="/payroll" element={<RoleRoute requiredPermission={PERMISSIONS.PAYRUNS_VIEW}><PayrollOverviewPage /></RoleRoute>} />
           <Route
             path="/payroll/payruns"
             element={

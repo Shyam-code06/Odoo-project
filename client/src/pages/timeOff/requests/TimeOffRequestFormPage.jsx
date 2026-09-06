@@ -16,10 +16,10 @@ import { Input } from '../../../components/ui/Input';
 export const TimeOffRequestFormPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, currentRole } = useAuth();
   const isEdit = Boolean(id);
 
-  const isEmployeeRole = user?.role === 'Employee';
+  const isEmployeeRole = ((currentRole || user?.role || '')).toLowerCase() === 'employee';
   const defaultEmpId = isEmployeeRole ? (user?.employee_id || user?.id || '') : '';
 
   const [formData, setFormData] = useState({
@@ -40,6 +40,12 @@ export const TimeOffRequestFormPage = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+
+  useEffect(() => {
+    if (isEmployeeRole && !formData.employeeId && (user?.employee_id || user?.id)) {
+      setFormData((prev) => ({ ...prev, employeeId: user.employee_id || user.id }));
+    }
+  }, [isEmployeeRole, formData.employeeId, user?.employee_id, user?.id]);
 
   useEffect(() => {
     if (!isEmployeeRole) {
@@ -81,7 +87,7 @@ export const TimeOffRequestFormPage = () => {
   // Derived selected type & duration
   const safeTypes = Array.isArray(timeOffTypes) ? timeOffTypes : [];
   const safeAllocs = Array.isArray(allAllocations) ? allAllocations : [];
-  const selectedType = safeTypes.find((t) => t.id === formData.timeOffTypeId);
+  const selectedType = safeTypes.find((t) => String(t.id) === String(formData.timeOffTypeId));
   const unitLabel = selectedType ? selectedType.unit : 'days';
 
   const duration = calculateRequestDuration(
@@ -107,7 +113,7 @@ export const TimeOffRequestFormPage = () => {
     }
   }, [selectedType, eligibleAllocations.length, formData.allocationId]);
 
-  const selectedAllocation = safeAllocs.find((a) => a.id === formData.allocationId);
+  const selectedAllocation = safeAllocs.find((a) => String(a.id) === String(formData.allocationId));
   const remainingBalance = selectedAllocation ? selectedAllocation.remainingAmount : 0;
   const isInsufficient = selectedType?.requiresAllocation && duration > remainingBalance;
 
@@ -159,10 +165,15 @@ export const TimeOffRequestFormPage = () => {
     setSaving(true);
     setError('');
     try {
+      const submitData = {
+        ...formData,
+        employeeId: formData.employeeId || user?.employee_id || user?.id,
+        duration: Number(duration) || 1,
+      };
       if (isEdit) {
-        await timeOffService.updateTimeOffRequest(id, formData);
+        await timeOffService.updateTimeOffRequest(id, submitData);
       } else {
-        await timeOffService.createTimeOffRequest(formData);
+        await timeOffService.createTimeOffRequest(submitData);
       }
       if (isEmployeeRole) {
         navigate('/my-time-off');

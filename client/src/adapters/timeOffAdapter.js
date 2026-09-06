@@ -40,8 +40,8 @@ export const timeOffAllocationAdapter = {
     const employeeId = alloc.employeeId || alloc.employee_id;
     const timeOffTypeId = alloc.timeOffTypeId || alloc.time_off_type_id;
 
-    const emp = employees.find((e) => e.id === employeeId);
-    const type = timeOffTypes.find((t) => t.id === timeOffTypeId);
+    const emp = employees.find((e) => String(e.id) === String(employeeId));
+    const type = timeOffTypes.find((t) => String(t.id) === String(timeOffTypeId));
 
     const allocatedAmount = Number(alloc.allocatedAmount ?? alloc.allocated_amount ?? 0);
     const usedAmount = Number(alloc.usedAmount ?? alloc.used_amount ?? 0);

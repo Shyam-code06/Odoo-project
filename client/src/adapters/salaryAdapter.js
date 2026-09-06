@@ -8,14 +8,16 @@ export const salaryStructureAdapter = {
     if (!struct) return null;
 
     const structRules = rules.filter(
-      (r) => r.salaryStructureId === struct.id || r.salary_structure_id === struct.id
+      (r) => String(r.salaryStructureId || r.salary_structure_id) === String(struct.id)
     );
     const activeRules = structRules.filter((r) => r.isActive ?? r.is_active ?? true);
     
-    // Future-ready employee/contract count
-    const employeeCount = contracts.filter(
-      (c) => c.salaryStructureId === struct.id || c.salary_structure_id === struct.id
-    ).length;
+    const matchingContracts = contracts.filter(
+      (c) =>
+        String(c.salaryStructureId || c.salary_structure_id) === String(struct.id) &&
+        String(c.status || '').toLowerCase() === 'active'
+    );
+    const employeeCount = struct.employee_count ?? struct.employeeCount ?? matchingContracts.length;
 
     return {
       id: struct.id,
@@ -25,7 +27,7 @@ export const salaryStructureAdapter = {
       isActive: struct.isActive ?? struct.is_active ?? true,
       ruleCount: structRules.length,
       activeRuleCount: activeRules.length,
-      employeeCount: employeeCount || (struct.code === 'REG' ? 12 : struct.code === 'EXEC' ? 4 : 2),
+      employeeCount,
       createdAt: struct.createdAt || struct.created_at || new Date().toISOString(),
       updatedAt: struct.updatedAt || struct.updated_at || new Date().toISOString(),
     };
