@@ -55,10 +55,16 @@ export const Sidebar = ({
       {/* Navigation Links Area */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {NAVIGATION_CATEGORIES.map((category) => {
-          // Filter navigation items using permission check
-          const visibleItems = category.items.filter((item) =>
-            hasPermission(item.permission)
-          );
+          // Filter navigation items using permission check and role restrictions
+          const visibleItems = category.items.filter((item) => {
+            if (item.hideForRoles && item.hideForRoles.includes(currentRole)) {
+              return false;
+            }
+            if (item.roles && !item.roles.includes(currentRole)) {
+              return false;
+            }
+            return hasPermission(item.permission);
+          });
 
           if (visibleItems.length === 0) return null;
 

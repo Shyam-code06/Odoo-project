@@ -601,6 +601,99 @@ export class DashboardService {
       .select('contracts.*', 'salary_structures.name as salary_structure_name')
       .first();
 
+    // 5. Employee's Own Pending Time-Off Requests
+    const myPendingLeaves = await db('time_off_requests')
+      .leftJoin('time_off_types', 'time_off_requests.time_off_type_id', 'time_off_types.id')
+      .where('time_off_requests.employee_id', employeeId)
+      .where('time_off_requests.status', 'pending')
+      .select(
+        'time_off_requests.id',
+        'time_off_requests.employee_id',
+        'time_off_types.name as leave_type_name',
+        'time_off_requests.start_date',
+        'time_off_requests.end_date',
+        'time_off_requests.duration',
+        'time_off_requests.status',
+        'time_off_requests.reason',
+        'time_off_requests.created_at'
+      )
+      .orderBy('time_off_requests.created_at', 'desc')
+      .limit(10);
+
+    const formattedMyLeaves = myPendingLeaves.map((r) => ({
+      id: r.id,
+      employeeName: `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'You',
+      avatar: '',
+      leaveType: r.leave_type_name || 'Leave',
+      dates: `${r.start_date} - ${r.end_date}`,
+      days: Number(r.duration || 1),
+      status: 'Pending',
+      reason: r.reason || '',
+      createdAt: r.created_at
+    }));
+
+    // 6. Today's Attendance Breakdown & Weekly Trend for Employee
+    const now = new Date();
+    const todayDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const todayAttendance = await db('attendance')
+      .where('employee_id', employeeId)
+      .where('attendance_date', todayDate)
+      .first();
+
+    const isTodayPresent = Boolean(
+      todayAttendance && ['present', 'half_day'].includes((todayAttendance.status || '').toLowerCase())
+    );
+    const isTodayLate = Boolean(
+      todayAttendance && (todayAttendance.status || '').toLowerCase() === 'late'
+    );
+
+    const todayLeave = await db('time_off_requests')
+      .where('employee_id', employeeId)
+      .where('status', 'approved')
+      .where('start_date', '<=', todayDate)
+      .where('end_date', '>=', todayDate)
+      .first();
+
+    const isTodayOnLeave = Boolean(todayLeave && !isTodayPresent && !isTodayLate);
+    const isTodayAbsent = !isTodayPresent && !isTodayLate && !isTodayOnLeave;
+
+    const employeeAttendanceSummary = {
+      present: isTodayPresent ? 1 : 0,
+      late: isTodayLate ? 1 : 0,
+      absent: isTodayAbsent ? 1 : 0,
+      on_leave: isTodayOnLeave ? 1 : 0,
+      wfh: 0,
+    };
+
+    // Weekly attendance trend (Mon - Fri)
+    const currentDayOfWeek = now.getDay(); // 0 = Sun, 1 = Mon ...
+    const diffToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday);
+
+    const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const weeklyTrend = [];
+
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      const att = attendanceRecords.find((r) => {
+        const rDate = typeof r.attendance_date === 'string'
+          ? r.attendance_date.slice(0, 10)
+          : r.attendance_date?.toISOString?.()?.slice(0, 10);
+        return rDate === dateStr;
+      });
+
+      const wasPresent = Boolean(att && ['present', 'late', 'half_day'].includes((att.status || '').toLowerCase()));
+      weeklyTrend.push({
+        day: weekDays[i],
+        present: wasPresent ? 1 : 0
+      });
+    }
+
     return {
       employee: {
         id: employee.id,
@@ -619,7 +712,11 @@ export class DashboardService {
         absent_days: absentDays,
         total_worked_hours: Number((totalMinutes / 60).toFixed(1))
       },
+      attendance_summary: employeeAttendanceSummary,
+      weekly_trend: weeklyTrend,
       leave_balances: leaveBalances,
+      pending_requests_count: myPendingLeaves.length,
+      recent_time_off_requests: formattedMyLeaves,
       recent_payslips: recentPayslips.map((p) => ({
         id: p.id,
         period_start: p.period_start,

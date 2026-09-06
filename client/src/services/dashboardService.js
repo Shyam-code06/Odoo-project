@@ -252,11 +252,11 @@ export const dashboardService = {
       { day: 'Fri', present: 0 },
     ];
     const attendanceSummary = {
-      present: attData.present || 0,
-      late: attData.late || 0,
-      absent: attData.absent || 0,
-      onLeave: liveSummary?.headcount?.on_leave || 0,
-      wfh: 0,
+      present: attData.present ?? 0,
+      late: attData.late ?? 0,
+      absent: attData.absent ?? 0,
+      onLeave: attData.on_leave ?? (liveSummary?.headcount?.on_leave || 0),
+      wfh: attData.wfh ?? 0,
       weeklyTrend,
     };
 

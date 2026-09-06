@@ -8,15 +8,17 @@ import { Button } from '../../../components/ui/Button';
 import { IconButton } from '../../../components/ui/IconButton';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../components/ui/Toast';
-import { PERMISSIONS } from '../../../config/permissions';
+import { PERMISSIONS, ROLES, normalizeRole } from '../../../config/permissions';
 
 export const TimeOffRequestsWidget = ({ requests = [], onApprove, onReject }) => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, currentRole } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [processingId, setProcessingId] = useState(null);
 
   const canApprove = hasPermission(PERMISSIONS.TIME_OFF_APPROVE);
+  const isEmployee = normalizeRole(currentRole) === ROLES.EMPLOYEE;
+  const targetRoute = isEmployee ? '/my-time-off' : '/time-off/requests';
 
   const handleApproveAction = async (id, name) => {
     setProcessingId(id);
@@ -47,13 +49,17 @@ export const TimeOffRequestsWidget = ({ requests = [], onApprove, onReject }) =>
       <CardHeader className="p-4 sm:p-6 pb-3">
         <div>
           <CardTitle>Pending Time-Off Requests</CardTitle>
-          <CardSubtitle>Leave requests awaiting authorization</CardSubtitle>
+          <CardSubtitle>
+            {isEmployee
+              ? 'Your leave requests awaiting manager authorization'
+              : 'Leave requests awaiting authorization'}
+          </CardSubtitle>
         </div>
         <Button
           variant="ghost"
           size="sm"
           rightIcon={ArrowUpRight}
-          onClick={() => navigate('/time-off/requests')}
+          onClick={() => navigate(targetRoute)}
         >
           View All
         </Button>
@@ -84,6 +90,11 @@ export const TimeOffRequestsWidget = ({ requests = [], onApprove, onReject }) =>
                       {req.dates} ({req.days}d)
                     </span>
                   </div>
+                  {req.reason && (
+                    <div className="text-[10px] text-slate-400 truncate mt-0.5 italic">
+                      "{req.reason}"
+                    </div>
+                  )}
                 </div>
               </div>
 

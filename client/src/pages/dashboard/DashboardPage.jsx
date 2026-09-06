@@ -114,8 +114,12 @@ export const DashboardPage = () => {
         {/* Right Column (Events, Activities & Quick Actions) */}
         <div className="lg:col-span-2 space-y-6">
           <QuickActionsWidget actions={quickActions} />
-          <UpcomingEventsWidget events={upcomingEvents} />
-          <RecentActivityWidget activities={recentActivities} />
+          {normalizeRole(currentRole) !== ROLES.EMPLOYEE && (
+            <UpcomingEventsWidget events={upcomingEvents} />
+          )}
+          {normalizeRole(currentRole) !== ROLES.EMPLOYEE && (
+            <RecentActivityWidget activities={recentActivities} />
+          )}
         </div>
       </div>
 

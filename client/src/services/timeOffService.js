@@ -644,8 +644,17 @@ export const timeOffService = {
   getTimeOffRequests: async (params = {}) => {
     // 1. Attempt live HTTP REST API call via apiClient
     try {
-      const endpoint = params.isSelfService || params.employeeId ? '/time-off/requests/my' : '/time-off/requests';
-      const apiRes = await apiClient.get(endpoint, params);
+      const endpoint = params.isSelfService ? '/time-off/requests/my' : '/time-off/requests';
+      const queryParams = {
+        page: params.page || 1,
+        limit: params.pageSize || params.limit || 10,
+        ...(params.employeeId ? { employee_id: params.employeeId } : {}),
+        ...(params.timeOffTypeId ? { time_off_type_id: params.timeOffTypeId } : {}),
+        ...(params.status ? { status: params.status } : {}),
+        ...(params.search ? { search: params.search } : {}),
+      };
+
+      const apiRes = await apiClient.get(endpoint, queryParams);
       if (apiRes?.success && apiRes?.data) {
         const rawList = Array.isArray(apiRes.data)
           ? apiRes.data
@@ -653,9 +662,27 @@ export const timeOffService = {
         const rawEmployees = employeeService._getRawEmployees();
         const rawTypes = employeeService._getRawTimeOffTypes();
         const rawAllocs = employeeService._getRawTimeOffAllocations();
-        const reqs = rawList.map((r) =>
+        let reqs = rawList.map((r) =>
           timeOffRequestAdapter.toUIModel(r, rawEmployees, rawTypes, rawAllocs)
         );
+
+        if (params.search) {
+          const q = params.search.toLowerCase().trim();
+          reqs = reqs.filter(
+            (r) =>
+              (r.employee?.name || '').toLowerCase().includes(q) ||
+              (r.employee?.code || '').toLowerCase().includes(q) ||
+              (r.reason || '').toLowerCase().includes(q) ||
+              (r.timeOffType?.name || '').toLowerCase().includes(q)
+          );
+        }
+
+        if (params.startDate) {
+          reqs = reqs.filter((r) => r.startDate >= params.startDate);
+        }
+        if (params.endDate) {
+          reqs = reqs.filter((r) => r.endDate <= params.endDate);
+        }
 
         const approvedDays = reqs
           .filter((r) => r.status === 'approved' && r.timeOffType?.unit === 'days')
@@ -667,7 +694,7 @@ export const timeOffService = {
         return {
           data: reqs,
           metrics: {
-            total: reqs.length,
+            total: apiRes.pagination?.total || reqs.length,
             pending: reqs.filter((r) => r.status === 'pending').length,
             approved: reqs.filter((r) => r.status === 'approved').length,
             rejected: reqs.filter((r) => r.status === 'rejected').length,
@@ -680,7 +707,7 @@ export const timeOffService = {
             totalItems: apiRes.pagination?.total || reqs.length,
             totalPages:
               apiRes.pagination?.totalPages ||
-              Math.ceil(reqs.length / (params.pageSize || 10)) ||
+              Math.ceil((apiRes.pagination?.total || reqs.length) / (params.pageSize || 10)) ||
               1,
           },
         };

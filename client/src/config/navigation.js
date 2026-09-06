@@ -26,11 +26,19 @@ export const NAVIGATION_CATEGORIES = [
         permission: PERMISSIONS.PROFILE_VIEW,
       },
       {
+        id: 'attendance-management',
+        label: 'Attendance Management',
+        path: '/attendance',
+        iconName: 'Clock',
+        permission: PERMISSIONS.ATTENDANCE_VIEW,
+      },
+      {
         id: 'my-attendance',
         label: 'My Attendance',
         path: '/my-attendance',
         iconName: 'Clock',
         permission: PERMISSIONS.MY_ATTENDANCE_VIEW,
+        hideForRoles: [ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER, ROLES.HR_PAYROLL_USER],
       },
       {
         id: 'my-time-off',
@@ -38,6 +46,7 @@ export const NAVIGATION_CATEGORIES = [
         path: '/my-time-off',
         iconName: 'Palmtree',
         permission: PERMISSIONS.MY_TIME_OFF_VIEW,
+        hideForRoles: [ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER, ROLES.HR_PAYROLL_USER],
       },
       {
         id: 'my-payslips',
@@ -45,6 +54,7 @@ export const NAVIGATION_CATEGORIES = [
         path: '/my-payslips',
         iconName: 'FileSpreadsheet',
         permission: PERMISSIONS.MY_PAYSLIPS_VIEW,
+        hideForRoles: [ROLES.ADMIN, ROLES.HR_MANAGER, ROLES.HR_PAYROLL_MANAGER, ROLES.HR_PAYROLL_USER],
       },
     ],
   },
@@ -92,13 +102,6 @@ export const NAVIGATION_CATEGORIES = [
         path: '/schedules',
         iconName: 'CalendarClock',
         permission: PERMISSIONS.SCHEDULES_VIEW,
-      },
-      {
-        id: 'attendance',
-        label: 'Attendance Management',
-        path: '/attendance',
-        iconName: 'Clock',
-        permission: PERMISSIONS.ATTENDANCE_VIEW,
       },
       {
         id: 'time-off',

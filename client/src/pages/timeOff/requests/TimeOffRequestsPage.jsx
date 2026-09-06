@@ -59,13 +59,15 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
   });
 
   useEffect(() => {
-    if (currentEmpId) {
-      setParams((prev) => ({ ...prev, employeeId: currentEmpId }));
-    }
-  }, [currentEmpId]);
+    setParams((prev) => ({
+      ...prev,
+      employeeId: currentEmpId,
+      isSelfService: isEmployeeRole,
+    }));
+  }, [currentEmpId, isEmployeeRole]);
 
   const { data, metrics, pagination, loading, error, refetch } = useTimeOffRequests(params);
-  const { balances, loading: balancesLoading } = useEmployeeLeaveBalances(currentEmpId || 'emp-001');
+  const { balances, loading: balancesLoading } = useEmployeeLeaveBalances(currentEmpId || null);
   const { data: rawTimeOffTypes } = useTimeOffTypes({ pageSize: 100 });
   const timeOffTypes = Array.isArray(rawTimeOffTypes) ? rawTimeOffTypes : [];
   const safeData = Array.isArray(data) ? data : [];
@@ -230,12 +232,14 @@ export const TimeOffRequestsPage = ({ isSelfService = false }) => {
       </div>
 
       {/* Employee Entitlement Balances Overview */}
-      <div>
-        <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3">
-          {isEmployeeRole ? 'Your Active Leave Entitlements' : 'Leave Entitlements Overview'}
-        </h3>
-        <LeaveBalanceGrid balances={balances} loading={balancesLoading} />
-      </div>
+      {(isEmployeeRole || Boolean(currentEmpId)) && (
+        <div>
+          <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3">
+            {isEmployeeRole ? 'Your Active Leave Entitlements' : 'Leave Entitlements Overview'}
+          </h3>
+          <LeaveBalanceGrid balances={balances} loading={balancesLoading} />
+        </div>
+      )}
 
       {/* Summary Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

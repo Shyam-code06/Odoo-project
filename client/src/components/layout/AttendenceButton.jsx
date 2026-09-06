@@ -76,13 +76,13 @@ const AttendenceButton = () => {
     if (processing) return;
 
     setProcessing(true);
+    let coords = null;
     try {
       // 1. Retrieve real device GPS coordinates
       if (!navigator.geolocation) {
         throw new Error('Geolocation is not supported by your browser. Real GPS coordinates are required for on-site attendance verification.');
       }
 
-      let coords = null;
       try {
         const pos = await new Promise((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -96,6 +96,7 @@ const AttendenceButton = () => {
             latitude: Number(pos.coords.latitude.toFixed(6)),
             longitude: Number(pos.coords.longitude.toFixed(6)),
           };
+          console.log('📍 Real Browser Detected Coordinates:', coords);
         }
       } catch (geoErr) {
         if (geoErr.code === 1) {
@@ -156,7 +157,11 @@ const AttendenceButton = () => {
     } catch (err) {
       setIsError(true);
       setModalTitle('Attendance Verification Failed');
-      setModalMessage(err.message || 'Unable to record attendance at this time.');
+      let msg = err.message || 'Unable to record attendance at this time.';
+      if (coords?.latitude && coords?.longitude) {
+        msg += `\n\n📍 Your Current Detected GPS:\nOFFICE_LATITUDE=${coords.latitude}\nOFFICE_LONGITUDE=${coords.longitude}\n(Paste these in server/.env and restart server to be 0m away)`;
+      }
+      setModalMessage(msg);
       setIsModalOpen(true);
     } finally {
       setProcessing(false);
